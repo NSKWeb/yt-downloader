@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Replace https://example.com with your real domain before deploying. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://example.com/faq.html</loc><priority>0.8</priority></url>
+  <url><loc>https://example.com/about.html</loc><priority>0.6</priority></url>
+  <url><loc>https://example.com/contact.html</loc><priority>0.6</priority></url>
+  <url><loc>https://example.com/privacy.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/terms.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/disclaimer.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/dmca.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/copyright.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/cookies.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/gdpr.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/acceptable-use.html</loc><priority>0.3</priority></url>
+  <url><loc>https://example.com/report-abuse.html</loc><priority>0.3</priority></url>
+</urlset>

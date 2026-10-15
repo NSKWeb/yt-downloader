@@ -1,4 +1,4 @@
-# multi-downloader
+# YT Downloader
 
 A fast multi-platform video and audio downloader. Paste a link, pick a format,
 get the file.

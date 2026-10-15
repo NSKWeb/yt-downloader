@@ -1,4 +1,4 @@
-# multi-downloader — Build Plan
+# yt-downloader — Build Plan
 
 MUST HAVE vs OPTIONAL, complete list, with build status.
 

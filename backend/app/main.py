@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="multi-downloader",
+    title="yt-downloader",
     version="2.0.0",
     description="Multi-platform video and audio downloader.",
     lifespan=lifespan,

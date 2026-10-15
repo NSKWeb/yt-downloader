@@ -75,4 +75,4 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build backend image
-        run: docker build -t multi-downloader-backend:ci ./backend
+        run: docker build -t yt-downloader-backend:ci ./backend
