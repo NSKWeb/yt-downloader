@@ -124,6 +124,21 @@ been.
 
 ## Environment facts
 
+- **Pushing requires bypassing the global `gh` credential helper.** `~/.gitconfig`
+  sets `credential.https://github.com.helper = !/usr/bin/gh auth git-credential`,
+  which takes precedence over `GIT_ASKPASS`. Every push therefore sends the
+  read-only `ghu_` app token and fails with `403 ... denied to NSKWeb`, even when
+  a working write token is supplied. To push with an explicit token, point git at
+  a clean global config and supply the token through an askpass helper:
+
+  ```bash
+  printf '[safe]\n\tdirectory = /workspace/project\n' > /tmp/gitconfig-clean
+  PUSH_TOKEN=... GIT_CONFIG_GLOBAL=/tmp/gitconfig-clean \
+    GIT_ASKPASS=/tmp/askpass.sh GIT_TERMINAL_PROMPT=0 git push origin main
+  ```
+
+  The `ghu_` app token itself has no write permission on any repo; a 403 from it
+  is expected and does not mean the repo or the push URL is wrong.
 - Python 3.13 locally, 3.12 in the Docker image
 - FFmpeg, aria2c, and redis-server are installed in the dev container
 - Datacenter IPs get refused by YouTube ("Sign in to confirm you're not a bot").
