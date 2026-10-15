@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yt-downloader — Fast YouTube Video &amp; Audio Downloader</title>
+<meta name="description" content="Download YouTube videos up to 8K, or extract audio as MP3, M4A, FLAC and more.">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="inner">
+    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <nav class="site">
+      <a href="/">Downloader</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <h1>Download any YouTube video</h1>
+    <p>Up to 8K video, or clean audio in seven formats. No sign-up.</p>
+  </section>
+
+  <div class="card">
+    <div class="toggle">
+      <button type="button" data-mode="video" class="active">Video</button>
+      <button type="button" data-mode="audio">Audio</button>
+    </div>
+
+    <div class="field">
+      <label for="url">YouTube URL</label>
+      <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label id="mode-label">Quality</label>
+      <div class="quality-grid" id="options"></div>
+    </div>
+
+    <button class="btn-primary" id="submit" type="button">Download</button>
+
+    <div class="alert" id="alert"></div>
+
+    <div class="progress-wrap" id="progress">
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="progress-meta">
+        <span id="pct">0%</span>
+        <span id="speed"></span>
+        <span id="eta"></span>
+      </div>
+      <a class="download-link" id="download-link" style="display:none" href="#">Download file</a>
+    </div>
+  </div>
+
+  <div class="ad-slot">Ad space</div>
+
+  <div class="card" style="margin-top:24px">
+    <h2 style="margin-top:0;font-size:1.15rem">How it works</h2>
+    <p style="color:var(--muted);margin-bottom:0">
+      Paste a link, pick a format, and the file is fetched on the server and handed
+      back to you. Large downloads run as background jobs, so you can close the tab
+      and come back to the progress page.
+    </p>
+  </div>
+
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div class="links">
+      <a href="/about.html">About Us</a>
+      <a href="/contact.html">Contact Us</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms &amp; Conditions</a>
+      <a href="/disclaimer.html">Disclaimer</a>
+      <a href="/dmca.html">DMCA</a>
+    </div>
+    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+  </div>
+</footer>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+venv/
+.env
+downloads/
+*.mp4
+*.mp3
+*.webm
+*.mkv
+cookies.txt
+.pytest_cache/
+.ruff_cache/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

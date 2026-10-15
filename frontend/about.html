@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About Us — yt-downloader</title>
+<meta name="description" content="What yt-downloader is and how it works.">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="inner">
+    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <nav class="site">
+      <a href="/">Downloader</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container page">
+  <h1>About Us</h1>
+  <p class="updated">Last updated: 15 October 2026</p>
+
+  <p>
+    yt-downloader is a small, focused web tool. It takes a YouTube link, fetches the
+    media on our server, and gives you the finished file. There is no account to
+    create, no software to install, and no browser extension to trust.
+  </p>
+
+  <h2>What it offers</h2>
+  <ul>
+    <li>Video downloads from 360p up to 4320p (8K), where the source provides it</li>
+    <li>Audio extraction in MP3, M4A, WAV, FLAC, OPUS, AAC, and OGG</li>
+    <li>Multi-connection fetching, so large files finish quickly</li>
+    <li>Background jobs, so a long download survives a closed tab</li>
+    <li>A clean interface that works on phones as well as desktops</li>
+  </ul>
+
+  <h2>How it works</h2>
+  <p>
+    When you submit a link, our API validates it and places a job on a queue. A
+    worker process picks up the job, downloads the video and audio streams, muxes
+    them with FFmpeg, and writes the result to storage. Your browser polls for
+    progress and downloads the file when it is ready. Files are deleted
+    automatically after a short period.
+  </p>
+
+  <h2>Our position on copyright</h2>
+  <p>
+    This tool exists for downloading content you have the right to download: your
+    own uploads, videos published under a permissive licence, public-domain
+    material, or anything you have permission to save. It is not intended for
+    redistributing other people's work.
+  </p>
+  <p>
+    We are not affiliated with, endorsed by, or connected to YouTube, Google LLC,
+    or any of their subsidiaries. All trademarks belong to their respective owners.
+    See our <a href="/dmca.html">DMCA</a> page for the takedown process.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions, bug reports, and takedown notices are all welcome. Reach us through
+    the <a href="/contact.html">contact page</a>.
+  </p>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div class="links">
+      <a href="/about.html">About Us</a>
+      <a href="/contact.html">Contact Us</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms &amp; Conditions</a>
+      <a href="/disclaimer.html">Disclaimer</a>
+      <a href="/dmca.html">DMCA</a>
+    </div>
+    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact Us — yt-downloader</title>
+<meta name="description" content="Get in touch with the yt-downloader team.">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="inner">
+    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <nav class="site">
+      <a href="/">Downloader</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container page">
+  <h1>Contact Us</h1>
+  <p class="updated">Last updated: 15 October 2026</p>
+
+  <p>We read everything. Pick whichever route suits you.</p>
+
+  <div class="card" style="margin-top:22px">
+    <h2 style="margin-top:0">Email</h2>
+    <p style="margin-bottom:6px"><strong>General &amp; support:</strong> <a href="mailto:support@example.com">support@example.com</a></p>
+    <p style="margin-bottom:6px"><strong>Copyright / DMCA:</strong> <a href="mailto:dmca@example.com">dmca@example.com</a></p>
+    <p style="margin-bottom:0"><strong>Privacy:</strong> <a href="mailto:privacy@example.com">privacy@example.com</a></p>
+  </div>
+
+  <h2>Send a message</h2>
+  <form id="contact-form">
+    <div class="field">
+      <label for="name">Your name</label>
+      <input type="text" id="name" name="name" required>
+    </div>
+    <div class="field">
+      <label for="email">Your email</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div class="field">
+      <label for="subject">Subject</label>
+      <select id="subject" name="subject">
+        <option>General question</option>
+        <option>Bug report</option>
+        <option>Copyright / DMCA</option>
+        <option>Privacy request</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="message">Message</label>
+      <textarea id="message" name="message" rows="6" required></textarea>
+    </div>
+    <button class="btn-primary" type="submit">Send message</button>
+    <div class="alert" id="contact-alert"></div>
+  </form>
+
+  <div class="note">
+    The form above opens your mail client with the message pre-filled. If that does
+    not work on your device, email us directly at the address listed above.
+  </div>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div class="links">
+      <a href="/about.html">About Us</a>
+      <a href="/contact.html">Contact Us</a>
+      <a href="/faq.html">FAQ</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms &amp; Conditions</a>
+      <a href="/disclaimer.html">Disclaimer</a>
+      <a href="/dmca.html">DMCA</a>
+    </div>
+    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+  </div>
+</footer>
+
+<script>
+document.getElementById("contact-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var name = document.getElementById("name").value;
+  var email = document.getElementById("email").value;
+  var subject = document.getElementById("subject").value;
+  var message = document.getElementById("message").value;
+
+  var body = "From: " + name + " (" + email + ")\n\n" + message;
+  window.location.href = "mailto:support@example.com"
+    + "?subject=" + encodeURIComponent(subject)
+    + "&body=" + encodeURIComponent(body);
+
+  var alertBox = document.getElementById("contact-alert");
+  alertBox.className = "alert visible ok";
+  alertBox.textContent = "Opening your mail client\u2026";
+});
+</script>
+</body>
+</html>

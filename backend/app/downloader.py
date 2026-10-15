@@ -1,0 +1,216 @@
+"""yt-dlp command construction and execution.
+
+The download pipeline is deliberately plain: build an argument list, run it,
+parse yt-dlp's progress lines, hand the resulting file back to the caller.
+
+Notes on what is intentionally absent:
+  * No Proof-of-Origin token provider and no `player_client` spoofing. Those
+    exist to defeat YouTube's bot detection rather than to download as an
+    ordinary client would, so they are out of scope.
+  * No proxy rotation.
+Requests are made as a normal client. If YouTube rate-limits a datacenter IP,
+that is a hosting decision, not something this module works around.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import re
+import shutil
+import sys
+from pathlib import Path
+from typing import Awaitable, Callable, Optional
+
+from .config import settings
+
+logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[dict], Awaitable[None] | None]
+
+# Invoke yt-dlp through the running interpreter rather than the console script,
+# so it always resolves to the same environment the app was installed into.
+YTDLP = [sys.executable, "-m", "yt_dlp"]
+
+_PROGRESS_RE = re.compile(
+    r"\[download\]\s+(?P<pct>[\d.]+)%"
+    r"(?:\s+of\s+~?\s*(?P<size>[\d.]+\w+))?"
+    r"(?:\s+at\s+(?P<speed>[\d.]+\w+/s))?"
+    r"(?:\s+ETA\s+(?P<eta>[\d:]+))?"
+)
+
+
+def build_format_selector(mode: str, quality: str) -> str:
+    """Return the yt-dlp -f expression for the requested mode and quality."""
+    if mode == "audio":
+        return "bestaudio/best"
+    if quality == "best":
+        return "bestvideo+bestaudio/best"
+    height = quality.removesuffix("p")
+    return (
+        f"bestvideo[height<={height}]+bestaudio/"
+        f"best[height<={height}]"
+    )
+
+
+def build_command(
+    url: str,
+    mode: str,
+    quality: str,
+    audio_format: str,
+    output_dir: Path,
+) -> list[str]:
+    """Assemble the yt-dlp argv for one job."""
+    outtmpl = str(output_dir / "%(title).150B [%(id)s].%(ext)s")
+    cmd: list[str] = [
+        *YTDLP,
+        "--no-playlist",
+        "--no-warnings",
+        "--newline",
+        "--progress",
+        "--retries", str(settings.retries),
+        "--socket-timeout", str(settings.socket_timeout),
+        "--merge-output-format", "mp4",
+        "--print", "after_move:filepath",
+        "-o", outtmpl,
+    ]
+
+    if mode == "audio":
+        cmd += [
+            "-f", build_format_selector(mode, quality),
+            "--extract-audio",
+            "--audio-format", audio_format,
+            "--audio-quality", "0",
+        ]
+    else:
+        cmd += ["-f", build_format_selector(mode, quality)]
+
+    # Multi-connection acceleration. aria2c only helps when yt-dlp is fetching
+    # a single direct media stream; it is a no-op for segmented (m3u8/DASH)
+    # downloads, which yt-dlp handles natively.
+    if shutil.which("aria2c"):
+        cmd += [
+            "--downloader", "aria2c",
+            "--downloader-args",
+            (
+                f"aria2c:-x {settings.aria2c_connections} "
+                f"-s {settings.aria2c_split} "
+                f"-k {settings.aria2c_min_split_size}"
+            ),
+        ]
+
+    cmd.append(url)
+    return cmd
+
+
+def _parse_progress_line(line: str) -> Optional[dict]:
+    match = _PROGRESS_RE.search(line)
+    if not match:
+        return None
+    data: dict = {"percent": float(match.group("pct"))}
+    if match.group("size"):
+        data["total"] = match.group("size")
+    if match.group("speed"):
+        data["speed"] = match.group("speed")
+    if match.group("eta"):
+        data["eta"] = match.group("eta")
+    return data
+
+
+async def run_download(
+    url: str,
+    mode: str,
+    quality: str,
+    audio_format: str,
+    output_dir: Path,
+    on_progress: ProgressCallback | None = None,
+    on_meta: Callable[[dict], Awaitable[None] | None] | None = None,
+) -> Path:
+    """Run yt-dlp and return the path to the finished file.
+
+    Raises RuntimeError with yt-dlp's own message on failure.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cmd = build_command(url, mode, quality, audio_format, output_dir)
+    logger.info("starting download: %s", " ".join(cmd[:-1]) + " <url>")
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+
+    final_path: str | None = None
+    tail: list[str] = []
+
+    assert proc.stdout is not None
+    async for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        if not line:
+            continue
+        tail.append(line)
+        if len(tail) > 40:
+            tail.pop(0)
+
+        progress = _parse_progress_line(line)
+        if progress and on_progress:
+            result = on_progress(progress)
+            if asyncio.iscoroutine(result):
+                await result
+            continue
+
+        # yt-dlp emits metadata JSON when --print is combined with a template
+        # that returns a dict; we use the simpler filepath print instead, and
+        # capture any absolute path line as the finished artefact.
+        if line.startswith("/") and Path(line).suffix:
+            final_path = line
+
+        if on_meta and line.startswith("{"):
+            try:
+                result = on_meta(json.loads(line))
+                if asyncio.iscoroutine(result):
+                    await result
+            except json.JSONDecodeError:
+                pass
+
+    returncode = await proc.wait()
+    if returncode != 0:
+        raise RuntimeError("yt-dlp failed: " + ("\n".join(tail[-8:]) or "unknown error"))
+
+    if final_path and Path(final_path).exists():
+        return Path(final_path)
+
+    # Fall back to the newest file in the output directory.
+    candidates = sorted(
+        (p for p in output_dir.iterdir() if p.is_file()),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise RuntimeError("yt-dlp reported success but produced no file")
+    return candidates[0]
+
+
+async def probe_info(url: str) -> dict:
+    """Fetch metadata without downloading. Returns {} on failure."""
+    cmd = [
+        *YTDLP,
+        "--no-playlist",
+        "--no-warnings",
+        "--skip-download",
+        "--dump-single-json",
+        url,
+    ]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return {}
+    try:
+        return json.loads(stdout.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return {}
