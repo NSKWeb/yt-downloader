@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     aria2c_connections: int = 16
     aria2c_split: int = 16
     aria2c_min_split_size: str = "1M"
+    # aria2c's own defaults are stricter than yt-dlp's and abort transfers on
+    # hosts that are slow to start a TLS handshake. These are deliberately
+    # generous so aria2c does not fail where yt-dlp would have succeeded.
+    aria2c_connect_timeout: int = 60
+    aria2c_timeout: int = 60
     socket_timeout: int = 30
     retries: int = 5
 

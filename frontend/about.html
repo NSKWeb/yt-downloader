@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About Us — yt-downloader</title>
-<meta name="description" content="What yt-downloader is and how it works.">
+<title>About Us — multi-downloader</title>
+<meta name="description" content="About multi-downloader, an independent multi-platform downloader.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -12,7 +12,7 @@
 
 <header class="site">
   <div class="inner">
-    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <a class="brand" href="/"><span class="dot"></span>multi-downloader</a>
     <nav class="site">
       <a href="/">Downloader</a>
       <a href="/faq.html">FAQ</a>
@@ -26,47 +26,49 @@
   <h1>About Us</h1>
   <p class="updated">Last updated: 15 October 2026</p>
 
-  <p>
-    yt-downloader is a small, focused web tool. It takes a YouTube link, fetches the
-    media on our server, and gives you the finished file. There is no account to
-    create, no software to install, and no browser extension to trust.
-  </p>
+  <div class="note">
+    This page is a template provided with the source code. Have a qualified lawyer
+    review and adapt it for your jurisdiction and your operation before you rely on
+    it or publish it as your own policy.
+  </div>
 
-  <h2>What it offers</h2>
-  <ul>
-    <li>Video downloads from 360p up to 4320p (8K), where the source provides it</li>
-    <li>Audio extraction in MP3, M4A, WAV, FLAC, OPUS, AAC, and OGG</li>
-    <li>Multi-connection fetching, so large files finish quickly</li>
-    <li>Background jobs, so a long download survives a closed tab</li>
-    <li>A clean interface that works on phones as well as desktops</li>
-  </ul>
+
+  <h2>What this is</h2>
+  <p>
+    multi-downloader is a self-hosted download tool. It accepts a link from YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok,
+    fetches the media on the server, and hands the finished file back to you.
+    It is an independent project and is not affiliated with any of those platforms.
+  </p>
 
   <h2>How it works</h2>
   <p>
-    When you submit a link, our API validates it and places a job on a queue. A
-    worker process picks up the job, downloads the video and audio streams, muxes
-    them with FFmpeg, and writes the result to storage. Your browser polls for
-    progress and downloads the file when it is ready. Files are deleted
-    automatically after a short period.
+    The frontend is plain HTML, CSS and JavaScript. The backend is a FastAPI
+    service that validates requests and queues jobs on Redis. An ARQ worker runs
+    yt-dlp, optionally accelerating transfers with aria2c and remuxing with
+    FFmpeg. Finished files are kept for a limited time and then deleted by an
+    hourly cleanup job.
   </p>
 
-  <h2>Our position on copyright</h2>
+  <h2>Supported platforms</h2>
   <p>
-    This tool exists for downloading content you have the right to download: your
-    own uploads, videos published under a permissive licence, public-domain
-    material, or anything you have permission to save. It is not intended for
-    redistributing other people's work.
+    YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok. Capabilities
+    differ by platform: YouTube supports up to 8K video, playlists and subtitles,
+    while the others are limited to the resolutions they actually publish. The
+    downloader shows only the options that apply to the link you paste.
   </p>
-  <p>
-    We are not affiliated with, endorsed by, or connected to YouTube, Google LLC,
-    or any of their subsidiaries. All trademarks belong to their respective owners.
-    See our <a href="/dmca.html">DMCA</a> page for the takedown process.
-  </p>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>We do not ask for your platform credentials or log in on your behalf.</li>
+    <li>We do not bypass paywalls, private content, or access controls.</li>
+    <li>We do not keep your files beyond the retention window.</li>
+    <li>We do not sell your data.</li>
+  </ul>
 
   <h2>Contact</h2>
   <p>
-    Questions, bug reports, and takedown notices are all welcome. Reach us through
-    the <a href="/contact.html">contact page</a>.
+    Questions, bug reports and takedown requests are welcome on the
+    <a href="/contact.html">contact page</a>.
   </p>
 </main>
 
@@ -80,8 +82,13 @@
       <a href="/terms.html">Terms &amp; Conditions</a>
       <a href="/disclaimer.html">Disclaimer</a>
       <a href="/dmca.html">DMCA</a>
+      <a href="/copyright.html">Copyright</a>
+      <a href="/cookies.html">Cookies</a>
+      <a href="/gdpr.html">GDPR</a>
+      <a href="/acceptable-use.html">Acceptable Use</a>
+      <a href="/report-abuse.html">Report Abuse</a>
     </div>
-    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+    <p>&copy; 2026 multi-downloader. Not affiliated with YouTube or Google LLC, Instagram or Meta Platforms, Inc., Facebook or Meta Platforms, Inc., X Corp., Pinterest, Inc., or TikTok Ltd.. Download only content you have the right to save.</p>
   </div>
 </footer>
 

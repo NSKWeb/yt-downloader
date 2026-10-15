@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>yt-downloader — Fast YouTube Video &amp; Audio Downloader</title>
-<meta name="description" content="Download YouTube videos up to 8K, or extract audio as MP3, M4A, FLAC and more.">
+<title>Multi-Downloader — Fast Video &amp; Audio Downloads</title>
+<meta name="description" content="Download video and audio from YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok. Up to 8K, seven audio formats.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -12,7 +12,7 @@
 
 <header class="site">
   <div class="inner">
-    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <a class="brand" href="/"><span class="dot"></span>multi-downloader</a>
     <nav class="site">
       <a href="/">Downloader</a>
       <a href="/faq.html">FAQ</a>
@@ -25,31 +25,38 @@
 <main class="container">
 
   <section class="hero">
-    <h1>Download any YouTube video</h1>
-    <p>Up to 8K video, or clean audio in seven formats. No sign-up.</p>
+    <h1>Download from six platforms</h1>
+    <p>YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok. Up to 8K video, or audio in seven formats.</p>
   </section>
 
+  <div class="platform-strip" id="platform-strip" aria-label="Supported platforms"></div>
+
   <div class="card">
-    <div class="toggle">
+    <div class="toggle" id="mode-toggle">
       <button type="button" data-mode="video" class="active">Video</button>
       <button type="button" data-mode="audio">Audio</button>
     </div>
 
     <div class="field">
-      <label for="url">YouTube URL</label>
-      <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" spellcheck="false">
+      <label for="url">Video URL <span class="badge" id="platform-badge"></span></label>
+      <input type="text" id="url" placeholder="Paste a link from any supported platform…" autocomplete="off" spellcheck="false">
     </div>
+
+    <div class="notice" id="platform-note"></div>
 
     <div class="field">
       <label id="mode-label">Quality</label>
       <div class="quality-grid" id="options"></div>
     </div>
 
+    <div class="extras" id="extras"></div>
+
     <button class="btn-primary" id="submit" type="button">Download</button>
 
     <div class="alert" id="alert"></div>
 
     <div class="progress-wrap" id="progress">
+      <div class="progress-title" id="progress-title"></div>
       <div class="bar"><div class="fill" id="fill"></div></div>
       <div class="progress-meta">
         <span id="pct">0%</span>
@@ -66,8 +73,8 @@
     <h2 style="margin-top:0;font-size:1.15rem">How it works</h2>
     <p style="color:var(--muted);margin-bottom:0">
       Paste a link, pick a format, and the file is fetched on the server and handed
-      back to you. Large downloads run as background jobs, so you can close the tab
-      and come back to the progress page.
+      back to you. Large downloads run as background jobs with live progress, so you
+      can close the tab and come back to it later.
     </p>
   </div>
 
@@ -83,8 +90,13 @@
       <a href="/terms.html">Terms &amp; Conditions</a>
       <a href="/disclaimer.html">Disclaimer</a>
       <a href="/dmca.html">DMCA</a>
+      <a href="/copyright.html">Copyright</a>
+      <a href="/cookies.html">Cookies</a>
+      <a href="/gdpr.html">GDPR</a>
+      <a href="/acceptable-use.html">Acceptable Use</a>
+      <a href="/report-abuse.html">Report Abuse</a>
     </div>
-    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+    <p>&copy; 2026 multi-downloader. Not affiliated with YouTube, Google, Instagram, Meta, X, Pinterest or TikTok. Download only content you have the right to save.</p>
   </div>
 </footer>
 

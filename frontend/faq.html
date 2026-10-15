@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FAQ — yt-downloader</title>
-<meta name="description" content="Frequently asked questions about yt-downloader.">
+<title>Frequently Asked Questions — multi-downloader</title>
+<meta name="description" content="Answers to common questions about using multi-downloader.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -12,7 +12,7 @@
 
 <header class="site">
   <div class="inner">
-    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <a class="brand" href="/"><span class="dot"></span>multi-downloader</a>
     <nav class="site">
       <a href="/">Downloader</a>
       <a href="/faq.html">FAQ</a>
@@ -26,51 +26,75 @@
   <h1>Frequently Asked Questions</h1>
   <p class="updated">Last updated: 15 October 2026</p>
 
-  <h2>Is it free?</h2>
-  <p>Yes. There is no account and no payment.</p>
+  <div class="note">
+    This page is a template provided with the source code. Have a qualified lawyer
+    review and adapt it for your jurisdiction and your operation before you rely on
+    it or publish it as your own policy.
+  </div>
 
-  <h2>What qualities can I download?</h2>
+
+  <h2>Which platforms are supported?</h2>
   <p>
-    Any quality the source provides, from 360p up to 4320p (8K). If a video was
-    only ever uploaded at 1080p, requesting 4K will fall back to the highest
-    available. Choose "Best" to always take the top stream.
+    YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok. Paste a link and
+    the downloader detects the platform automatically, then shows only the
+    qualities and formats that platform actually offers.
   </p>
 
-  <h2>Which audio formats are supported?</h2>
-  <p>MP3, M4A, WAV, FLAC, OPUS, AAC, and OGG.</p>
+  <h2>Why can't I pick 4K for TikTok or Instagram?</h2>
+  <p>
+    Because those platforms do not publish 4K. Offering the option would produce a
+    silent fallback to a lower resolution, so the interface hides it and the server
+    rejects it. YouTube is the only supported platform with a 4K and 8K ladder.
+  </p>
 
-  <h2>Why does my download fail?</h2>
-  <p>Common causes, in rough order of frequency:</p>
-  <ul>
-    <li>The video is private, deleted, or region-locked.</li>
-    <li>The link is a playlist or channel URL. Single videos only.</li>
-    <li>The URL is not a YouTube link.</li>
-    <li>The server is rate-limited. Wait a few minutes and retry.</li>
-  </ul>
+  <h2>Which audio formats can I get?</h2>
+  <p>
+    MP3, M4A, WAV, FLAC, Opus, AAC and OGG, at 128, 192, 256 or 320 kbps, or at the
+    best bitrate the source offers. FLAC and WAV are lossless containers, so they
+    preserve what the source provides rather than adding quality that was never
+    there.
+  </p>
+
+  <h2>Why does a download fail with a sign-in or bot message?</h2>
+  <p>
+    Some platforms restrict automated access from data-centre IP addresses and
+    require a signed-in session. This tool deliberately does not log in on your
+    behalf, so content behind that check cannot be fetched. Try a public video, or
+    run your own instance from a residential connection.
+  </p>
+
+  <h2>Why do some Instagram or Facebook links fail?</h2>
+  <p>
+    Those platforms serve most content only to signed-in users. Public posts usually
+    work; private accounts, age-restricted media and login-walled pages do not, and
+    that is by design rather than a bug.
+  </p>
 
   <h2>How long are files kept?</h2>
   <p>
-    Files are temporary. They are deleted automatically a short time after the
-    download completes. Save the file to your device promptly.
+    Finished files are deleted after a retention window, and an hourly job removes
+    anything that has expired. Download what you need soon after the job completes.
   </p>
 
   <h2>Can I download a whole playlist?</h2>
-  <p>Not currently. One video per request.</p>
-
-  <h2>Is this legal?</h2>
   <p>
-    Downloading is legal for content you have the right to save: your own uploads,
-    permissively licensed works, public-domain material, or anything you have
-    permission to copy. Downloading copyrighted material you do not have rights to
-    is your responsibility, and in many jurisdictions it is unlawful. See our
-    <a href="/terms.html">Terms</a> and <a href="/disclaimer.html">Disclaimer</a>.
+    On YouTube, yes. Enable "Download entire playlist" before submitting. Other
+    platforms do not expose playlists in a way this tool can reliably enumerate, so
+    the option is hidden for them.
   </p>
 
-  <h2>Do you keep a copy of what I download?</h2>
-  <p>No permanent copy. Files are transient and deleted automatically.</p>
+  <h2>Is there a limit on how much I can download?</h2>
+  <p>
+    Requests are rate limited per client to keep the queue fair for everyone. If you
+    see a 429 response, wait a moment and try again.
+  </p>
 
-  <h2>How do I report a copyright issue?</h2>
-  <p>Follow the process on our <a href="/dmca.html">DMCA</a> page.</p>
+  <h2>Do you keep a record of what I download?</h2>
+  <p>
+    A short-lived job record is kept so progress and history work, and it is removed
+    on the same schedule as the files. See the
+    <a href="/privacy.html">privacy policy</a> for detail.
+  </p>
 </main>
 
 <footer class="site">
@@ -83,8 +107,13 @@
       <a href="/terms.html">Terms &amp; Conditions</a>
       <a href="/disclaimer.html">Disclaimer</a>
       <a href="/dmca.html">DMCA</a>
+      <a href="/copyright.html">Copyright</a>
+      <a href="/cookies.html">Cookies</a>
+      <a href="/gdpr.html">GDPR</a>
+      <a href="/acceptable-use.html">Acceptable Use</a>
+      <a href="/report-abuse.html">Report Abuse</a>
     </div>
-    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+    <p>&copy; 2026 multi-downloader. Not affiliated with YouTube or Google LLC, Instagram or Meta Platforms, Inc., Facebook or Meta Platforms, Inc., X Corp., Pinterest, Inc., or TikTok Ltd.. Download only content you have the right to save.</p>
   </div>
 </footer>
 

@@ -70,8 +70,8 @@ class DownloadRequest(BaseModel):
     @classmethod
     def validate_mode(cls, v: str) -> str:
         v = v.strip().lower()
-        if v not in ("video", "audio"):
-            raise ValueError("mode must be 'video' or 'audio'")
+        if v not in ("video", "audio", "image"):
+            raise ValueError("mode must be 'video', 'audio', or 'image'")
         return v
 
     @model_validator(mode="after")
@@ -85,6 +85,8 @@ class DownloadRequest(BaseModel):
             raise ValueError(f"{platform.name} does not support video downloads")
         if self.mode == "audio" and not platform.supports_audio:
             raise ValueError(f"{platform.name} does not support audio downloads")
+        if self.mode == "image" and not platform.supports_images:
+            raise ValueError(f"{platform.name} does not support image downloads")
 
         if self.mode == "video":
             self.quality = self.quality.strip().lower()
@@ -93,6 +95,9 @@ class DownloadRequest(BaseModel):
                     f"quality for {platform.name} must be one of "
                     + ", ".join(platform.video_qualities)
                 )
+        elif self.mode == "image":
+            # Images have no quality ladder; the field is ignored downstream.
+            self.quality = "best"
         else:
             self.audio_format = self.audio_format.strip().lower()
             if self.audio_format not in platform.audio_formats:

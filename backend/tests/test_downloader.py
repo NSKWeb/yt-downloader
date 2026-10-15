@@ -75,3 +75,95 @@ class TestProgressParsing:
 
     def test_non_progress_line_returns_none(self):
         assert _parse_progress_line("[youtube] Extracting URL") is None
+
+
+class TestMeaningfulError:
+    """The message shown to users must be the cause, not transfer chatter."""
+
+    def test_strips_aria2_progress_lines(self):
+        from app.downloader import _meaningful_error
+
+        lines = [
+            "[#8533bb 0B/0B CN:1 DL:0B]",
+            "[#8533bb 1.2MiB/3.4MiB CN:1 DL:900KiB]",
+            "ERROR: [tiktok] 123: Unable to extract video url",
+        ]
+        msg = _meaningful_error(lines)
+        assert "Unable to extract video url" in msg
+        assert "8533bb" not in msg
+
+    def test_strips_ansi_colour_codes(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["\x1b[0;31mERROR:\x1b[0m something broke"])
+        assert "\x1b" not in msg
+        assert "something broke" in msg
+
+    def test_prefers_error_lines_over_later_noise(self):
+        from app.downloader import _meaningful_error
+
+        lines = [
+            "ERROR: first real problem",
+            "[download] Destination: x.mp4",
+            "some trailing note",
+        ]
+        assert _meaningful_error(lines) == "ERROR: first real problem"
+
+    def test_ignores_blank_lines(self):
+        from app.downloader import _meaningful_error
+
+        assert _meaningful_error(["", "   ", "\t"]) == "unknown error"
+
+    def test_falls_back_to_tail_when_no_error_marker(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["step one", "step two"])
+        assert "step one" in msg and "step two" in msg
+
+    def test_result_is_bounded(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["ERROR: " + "x" * 5000])
+        assert len(msg) <= 600
+
+
+class TestAria2cArgs:
+    """aria2c must not be the reason a download that yt-dlp could do fails."""
+
+    def _args(self):
+        from app.downloader import build_command
+
+        cmd = build_command(
+            "https://youtu.be/x", "video", "720p", "mp3", Path("/tmp"), "youtube"
+        )
+        idx = cmd.index("--downloader-args")
+        return cmd[idx + 1]
+
+    def test_forwards_connection_tuning(self):
+        args = self._args()
+        assert "-x 16" in args
+        assert "-s 16" in args
+        assert "-k 1M" in args
+
+    def test_uses_generous_timeouts(self):
+        args = self._args()
+        assert "--connect-timeout=60" in args
+        assert "--timeout=60" in args
+        assert "--max-tries=5" in args
+
+    def test_disables_speed_floor(self):
+        # A slow but progressing transfer must not be killed for being slow.
+        assert "--lowest-speed-limit=0" in self._args()
+
+    def test_quiets_aria2c_progress_output(self):
+        args = self._args()
+        assert "--summary-interval=0" in args
+        assert "--console-log-level=warn" in args
+
+    def test_downloader_is_aria2c(self):
+        from app.downloader import build_command
+
+        cmd = build_command(
+            "https://youtu.be/x", "video", "720p", "mp3", Path("/tmp"), "youtube"
+        )
+        assert cmd[cmd.index("--downloader") + 1] == "aria2c"

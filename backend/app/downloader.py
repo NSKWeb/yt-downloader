@@ -41,6 +41,28 @@ _PROGRESS_RE = re.compile(
     r"(?:\s+ETA\s+(?P<eta>[\d:]+))?"
 )
 
+# aria2c renders its own progress bar, and those lines can push the actual
+# error out of the captured tail. Drop them so the message we surface is the
+# one yt-dlp or the extractor actually produced.
+_ARIA2_PROGRESS_RE = re.compile(r"\[#[0-9a-f]+\s")
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _meaningful_error(lines: list[str]) -> str:
+    """Pick the lines that explain a failure, ignoring transfer chatter."""
+    cleaned = []
+    for raw in lines:
+        line = _ANSI_RE.sub("", raw).strip()
+        if not line or _ARIA2_PROGRESS_RE.search(line):
+            continue
+        cleaned.append(line)
+    if not cleaned:
+        return "unknown error"
+    # Prefer lines that look like the cause; otherwise keep the last few.
+    errors = [ln for ln in cleaned if "ERROR" in ln or "error" in ln]
+    chosen = errors[:3] if errors else cleaned[-8:]
+    return "\n".join(chosen)[:600]
+
 
 def build_format_selector(mode: str, quality: str, platform_key: str = "youtube") -> str:
     """Return the yt-dlp -f expression for the requested mode and quality.
@@ -144,15 +166,28 @@ def build_command(
     # Multi-connection acceleration. aria2c only helps when yt-dlp is fetching
     # a single direct media stream; it is a no-op for segmented (m3u8/DASH)
     # downloads, which yt-dlp handles natively.
+    #
+    # The timeout and retry options matter: aria2c's defaults are far less
+    # forgiving than yt-dlp's, and a host that is slow to start a TLS handshake
+    # makes it abort a transfer that yt-dlp would have completed. Console
+    # output is quieted because its progress bar drowns out real errors.
     if shutil.which("aria2c"):
+        aria2_args = (
+            f"aria2c:-x {settings.aria2c_connections} "
+            f"-s {settings.aria2c_split} "
+            f"-k {settings.aria2c_min_split_size} "
+            f"--connect-timeout={settings.aria2c_connect_timeout} "
+            f"--timeout={settings.aria2c_timeout} "
+            f"--max-tries={settings.retries} "
+            "--retry-wait=3 "
+            "--lowest-speed-limit=0 "
+            "--file-allocation=none "
+            "--summary-interval=0 "
+            "--console-log-level=warn"
+        )
         cmd += [
             "--downloader", "aria2c",
-            "--downloader-args",
-            (
-                f"aria2c:-x {settings.aria2c_connections} "
-                f"-s {settings.aria2c_split} "
-                f"-k {settings.aria2c_min_split_size}"
-            ),
+            "--downloader-args", aria2_args,
         ]
 
     cmd.append(url)
@@ -257,7 +292,7 @@ async def run_download(
 
     returncode = await proc.wait()
     if returncode != 0:
-        raise RuntimeError("yt-dlp failed: " + ("\n".join(tail[-8:]) or "unknown error"))
+        raise RuntimeError("yt-dlp failed: " + _meaningful_error(tail))
 
     if final_path and Path(final_path).exists():
         return Path(final_path)

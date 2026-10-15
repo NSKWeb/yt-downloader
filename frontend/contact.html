@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contact Us — yt-downloader</title>
-<meta name="description" content="Get in touch with the yt-downloader team.">
+<title>Contact Us — multi-downloader</title>
+<meta name="description" content="How to reach the multi-downloader maintainers.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -12,7 +12,7 @@
 
 <header class="site">
   <div class="inner">
-    <a class="brand" href="/"><span class="dot"></span>yt-downloader</a>
+    <a class="brand" href="/"><span class="dot"></span>multi-downloader</a>
     <nav class="site">
       <a href="/">Downloader</a>
       <a href="/faq.html">FAQ</a>
@@ -26,46 +26,47 @@
   <h1>Contact Us</h1>
   <p class="updated">Last updated: 15 October 2026</p>
 
-  <p>We read everything. Pick whichever route suits you.</p>
-
-  <div class="card" style="margin-top:22px">
-    <h2 style="margin-top:0">Email</h2>
-    <p style="margin-bottom:6px"><strong>General &amp; support:</strong> <a href="mailto:support@example.com">support@example.com</a></p>
-    <p style="margin-bottom:6px"><strong>Copyright / DMCA:</strong> <a href="mailto:dmca@example.com">dmca@example.com</a></p>
-    <p style="margin-bottom:0"><strong>Privacy:</strong> <a href="mailto:privacy@example.com">privacy@example.com</a></p>
-  </div>
-
-  <h2>Send a message</h2>
-  <form id="contact-form">
-    <div class="field">
-      <label for="name">Your name</label>
-      <input type="text" id="name" name="name" required>
-    </div>
-    <div class="field">
-      <label for="email">Your email</label>
-      <input type="email" id="email" name="email" required>
-    </div>
-    <div class="field">
-      <label for="subject">Subject</label>
-      <select id="subject" name="subject">
-        <option>General question</option>
-        <option>Bug report</option>
-        <option>Copyright / DMCA</option>
-        <option>Privacy request</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="message">Message</label>
-      <textarea id="message" name="message" rows="6" required></textarea>
-    </div>
-    <button class="btn-primary" type="submit">Send message</button>
-    <div class="alert" id="contact-alert"></div>
-  </form>
-
   <div class="note">
-    The form above opens your mail client with the message pre-filled. If that does
-    not work on your device, email us directly at the address listed above.
+    This page is a template provided with the source code. Have a qualified lawyer
+    review and adapt it for your jurisdiction and your operation before you rely on
+    it or publish it as your own policy.
   </div>
+
+
+  <h2>Get in touch</h2>
+  <p>
+    For bug reports, feature requests and general questions, open an issue on the
+    project's GitHub repository. That is the fastest route and keeps the discussion
+    public and searchable.
+  </p>
+
+  <h2>Copyright and takedown notices</h2>
+  <p>
+    If you believe content accessible through this service infringes your rights,
+    see the <a href="/dmca.html">DMCA page</a> for the notice requirements and where
+    to send them. Notices sent through the general contact route may take longer to
+    reach the right person.
+  </p>
+
+  <h2>Abuse reports</h2>
+  <p>
+    To report misuse of this service, see the
+    <a href="/report-abuse.html">report abuse page</a>.
+  </p>
+
+  <h2>What to include</h2>
+  <ul>
+    <li>What you expected to happen, and what happened instead.</li>
+    <li>The URL you were downloading, if it is safe to share it.</li>
+    <li>Any error message, exactly as it appeared.</li>
+    <li>Your browser and operating system, for interface problems.</li>
+  </ul>
+
+  <h2>Response times</h2>
+  <p>
+    This is a volunteer-maintained project. We aim to acknowledge reports promptly
+    but cannot promise a fixed response time.
+  </p>
 </main>
 
 <footer class="site">
@@ -78,28 +79,15 @@
       <a href="/terms.html">Terms &amp; Conditions</a>
       <a href="/disclaimer.html">Disclaimer</a>
       <a href="/dmca.html">DMCA</a>
+      <a href="/copyright.html">Copyright</a>
+      <a href="/cookies.html">Cookies</a>
+      <a href="/gdpr.html">GDPR</a>
+      <a href="/acceptable-use.html">Acceptable Use</a>
+      <a href="/report-abuse.html">Report Abuse</a>
     </div>
-    <p>&copy; 2026 yt-downloader. Not affiliated with YouTube or Google LLC.</p>
+    <p>&copy; 2026 multi-downloader. Not affiliated with YouTube or Google LLC, Instagram or Meta Platforms, Inc., Facebook or Meta Platforms, Inc., X Corp., Pinterest, Inc., or TikTok Ltd.. Download only content you have the right to save.</p>
   </div>
 </footer>
 
-<script>
-document.getElementById("contact-form").addEventListener("submit", function (e) {
-  e.preventDefault();
-  var name = document.getElementById("name").value;
-  var email = document.getElementById("email").value;
-  var subject = document.getElementById("subject").value;
-  var message = document.getElementById("message").value;
-
-  var body = "From: " + name + " (" + email + ")\n\n" + message;
-  window.location.href = "mailto:support@example.com"
-    + "?subject=" + encodeURIComponent(subject)
-    + "&body=" + encodeURIComponent(body);
-
-  var alertBox = document.getElementById("contact-alert");
-  alertBox.className = "alert visible ok";
-  alertBox.textContent = "Opening your mail client\u2026";
-});
-</script>
 </body>
 </html>
