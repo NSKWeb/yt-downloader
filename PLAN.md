@@ -1,6 +1,10 @@
-# yt-downloader — Build Plan
+# multi-downloader — Build Plan
 
 MUST HAVE vs OPTIONAL, complete list, with build status.
+
+Originally scoped for YouTube alone, now covers six platforms: YouTube,
+Instagram, Facebook, Twitter/X, Pinterest, and TikTok. Format selection is
+per-platform, because only YouTube serves video and audio as separate streams.
 
 **Legend for the `Scope` column**
 
@@ -16,12 +20,12 @@ MUST HAVE vs OPTIONAL, complete list, with build status.
 
 | # | Item | Kaam | Scope |
 |---|------|------|-------|
-| 1 | URL Input Box | YouTube link paste karne ke liye | ✅ |
-| 2 | Paste Button | Clipboard se direct paste | 🟡 |
+| 1 | URL Input Box | Link paste karne ke liye (6 platforms) | ✅ |
+| 2 | Paste Button | Clipboard se direct paste | ✅ |
 | 3 | Video/Audio Toggle | MP4 ya MP3 choose karne ke liye | ✅ |
 | 4 | Video Quality Selector | 360p/480p/720p/1080p/1440p(2K)/2160p(4K)/4320p(8K)/Best | ✅ |
 | 5 | Video Format Dropdown | MP4 / MKV / WebM | 🟡 |
-| 6 | Audio Quality Selector | 128 / 192 / 320 kbps | 🟡 |
+| 6 | Audio Quality Selector | 128 / 192 / 256 / 320 kbps / best | ✅ |
 | 7 | Audio Format Dropdown | MP3/M4A/WAV/FLAC/OPUS/AAC/OGG | ✅ |
 | 8 | Download Button | Submit karne ke liye | ✅ |
 | 9 | Loading Spinner | "Fetching..." dikhane ke liye | ✅ |
@@ -29,8 +33,8 @@ MUST HAVE vs OPTIONAL, complete list, with build status.
 | 11 | Status Text | Queued/Downloading/Merging/Done | ✅ |
 | 12 | Success Message | "File ready hai" + Save button | ✅ |
 | 13 | Error Message | Invalid URL / failed download | ✅ |
-| 14 | Thumbnail Preview | URL paste karte hi video image | 🟡 |
-| 15 | Video Title + Duration | Confirm karne ke liye | 🟡 |
+| 14 | Thumbnail Preview | URL paste karte hi video image | ✅ |
+| 15 | Video Title + Duration | Confirm karne ke liye | ✅ |
 | 16 | Responsive Design | Mobile + tablet + desktop | ✅ |
 | 17 | Basic Styling | Readable fonts, proper spacing | ✅ |
 | 18 | Enter Key Support | URL daal ke Enter dabao | ✅ |
@@ -63,7 +67,7 @@ MUST HAVE vs OPTIONAL, complete list, with build status.
 | 1 | POST /api/download | Download start karne ke liye | ✅ |
 | 2 | GET /api/status/{task_id} | Progress check karne ke liye | ✅ |
 | 3 | GET /api/file/{task_id} | File serve karne ke liye | ✅ |
-| 4 | URL Validator | Sirf YouTube URL accept kare | ✅ |
+| 4 | URL Validator | Sirf 6 supported platforms ke hosts accept kare | ✅ |
 | 5 | yt-dlp Integration | Actual download engine | ✅ |
 | 6 | aria2c Integration | 16 parallel connections | ✅ |
 | 7 | FFmpeg Setup | Video + audio merge | ✅ |

@@ -5,11 +5,13 @@ on:
     branches: [main, master]
   pull_request:
 
+# Read-only by default; no job here needs to write to the repository.
 permissions:
   contents: read
 
 jobs:
   test:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +33,7 @@ jobs:
         run: python -m pytest -q
 
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +49,24 @@ jobs:
         working-directory: backend
         run: ruff check app tests
 
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r requirements.txt
+
   docker:
+    name: Docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,4 +75,4 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build backend image
-        run: docker build -t yt-downloader-backend:ci ./backend
+        run: docker build -t multi-downloader-backend:ci ./backend
