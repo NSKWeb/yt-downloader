@@ -14,3 +14,7 @@ cookies.txt
 .idea/
 .DS_Store
 Thumbs.db
+
+# Redis persistence artefacts
+dump.rdb
+*.rdb
