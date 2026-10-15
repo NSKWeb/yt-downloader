@@ -20,6 +20,7 @@ shows an Audio tab it cannot honour.*
 
 - [What it does](#what-it-does)
 - [Screenshots](#screenshots)
+- [Colour and accessibility](#colour-and-accessibility)
 - [Stack](#stack)
 - [Architecture](#architecture)
 - [How the download logic works](#how-the-download-logic-works)
@@ -67,6 +68,31 @@ format selector and a bitrate selector (128–320 kbps, or best available).*
 *Completion. The task ran as a queued job; the API returned a task id
 immediately and the UI watched it. At 100% the progress bar is replaced by a
 direct link to `/api/file/{task_id}`.*
+
+## Colour and accessibility
+
+The accent is a rose (`#f2789f`), not a saturated red. Bright red on a dark
+surface is hard to look at for long — it vibrates against the background, and it
+is the colour people are trained to read as "error", which is the wrong signal
+for a normal primary action.
+
+One variable cannot serve both roles, so the palette splits them:
+
+| Token | Value | Used for | Contrast |
+|-------|-------|----------|----------|
+| `--accent` | `#f2789f` | Link text, borders, progress fill, chips | 7.18:1 on `--bg` |
+| `--accent-solid` | `#b02a45` | Filled buttons and active tabs, under white text | 6.44:1 against white |
+| `--accent-hover` | `#c9334b` | Hover state for the filled buttons | 5.17:1 against white |
+
+This is not cosmetic. The previous `--accent: #ff0033` measured **3.96:1**
+against white text on the primary button, below the WCAG AA threshold of 4.5:1.
+The rose pair clears AA in both directions, so the same token is safe as body
+text on the dark background and as a button surface under white text. The error
+alert was softened to a rose tint as well (`#3a1a20` on `#ffc9d2`, 10.78:1) so
+it stays distinguishable from the accent without shouting.
+
+All colours live in the `:root` block of `frontend/assets/style.css`. Change
+them there; no page or script hardcodes a colour.
 
 ## Stack
 

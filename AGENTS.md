@@ -94,6 +94,16 @@ docker compose config --quiet   # validate before pushing
 
 ## README assets
 
+- **The accent palette is rose, not red, and splits into two tokens.** Bright
+  red (`#ff0033`) vibrates on the dark background and reads as "error" on a
+  primary action; it also measured only 3.96:1 against white button text, below
+  WCAG AA. Use `--accent: #f2789f` for text, borders and fills on dark surfaces
+  (7.18:1), and `--accent-solid: #b02a45` for any filled surface that carries
+  white text (6.44:1). Never put white text on `--accent`; never put body text
+  on `--accent-solid`. All colours live in `:root` in
+  `frontend/assets/style.css` — no page or script hardcodes one, so the palette
+  is a one-file change. Changing it means recapturing the screenshots, since
+  they show the UI.
 - `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
   pipeline, platform matrix). They use only text, rects, lines and paths, so
   GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above
