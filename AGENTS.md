@@ -2,6 +2,19 @@
 
 Repository memory for agent sessions. Keep this current when the project changes.
 
+## Repository
+
+- Published at https://github.com/NSKWeb/yt-downloader (public, default branch
+  `main`).
+- CI runs four jobs on every push and pull request: `test`, `lint`, `security`,
+  `docker`. Keep them green; the workflow is `.github/workflows/ci.yml`.
+- `frontend/robots.txt` and `frontend/sitemap.xml` ship with `https://example.com`
+  placeholders. They must be replaced with the real domain before the site is
+  indexed, or the sitemap points at the wrong host.
+- Files in `frontend/` are served by nginx from a read-only bind mount, so a file
+  created without world-readable permissions returns 403 rather than being
+  served. If a new page 403s, check its mode before touching the config.
+
 ## What this is
 
 A multi-platform (YouTube, Instagram, Facebook, Twitter/X, Pinterest, TikTok)
