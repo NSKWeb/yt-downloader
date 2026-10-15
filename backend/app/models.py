@@ -141,7 +141,20 @@ class StatusResponse(BaseModel):
 class InfoResponse(BaseModel):
     title: str | None = None
     uploader: str | None = None
+    # yt-dlp reports duration as a float (74.304 for a 74-second clip), and
+    # returns the string "NA" when it cannot determine one. Truncate to whole
+    # seconds rather than letting either reach the client as a validation error.
     duration: int | None = None
     thumbnail: str | None = None
     webpage_url: str | None = None
     formats_available: list[str] = Field(default_factory=list)
+
+    @field_validator("duration", mode="before")
+    @classmethod
+    def _coerce_duration(cls, value):
+        if value is None:
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None

@@ -353,3 +353,39 @@ class TestHistoryEndpoints:
         r = client.delete("/api/history/someid")
         assert r.status_code == 200
         assert r.json()["deleted"] == "someid"
+
+    def test_info_accepts_fractional_duration(self, client, monkeypatch):
+        """yt-dlp reports duration as a float, e.g. 74.304 for a 74s clip."""
+        from app import main
+
+        async def fake_probe(url):
+            return {
+                "title": "A clip",
+                "uploader": "Someone",
+                "duration": 74.304,
+                "thumbnail": "https://example.invalid/t.jpg",
+                "webpage_url": "https://www.facebook.com/watch/?v=1",
+                "formats": [
+                    {"height": 720, "vcodec": "avc1"},
+                    {"height": 360, "vcodec": "avc1"},
+                ],
+            }
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://www.facebook.com/watch/?v=1")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["duration"] == 74
+        assert body["formats_available"] == ["360p", "720p"]
+
+    def test_info_tolerates_missing_duration(self, client, monkeypatch):
+        """yt-dlp yields the string "NA" when it cannot read a duration."""
+        from app import main
+
+        async def fake_probe(url):
+            return {"title": "No duration", "duration": "NA", "formats": []}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://youtu.be/abc")
+        assert r.status_code == 200
+        assert r.json()["duration"] is None

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430" role="img" aria-labelledby="flowTitle flowDesc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="flowTitle">Job lifecycle from paste to file</title>
+  <desc id="flowDesc">Seven numbered steps. The user pastes a link, the URL is validated, the job is queued, the worker downloads it, progress streams back, and the file is handed over. A validation failure short-circuits at step two.</desc>
+
+  <defs>
+    <marker id="stepArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c959f"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="430" rx="16" fill="#f6f8fa"/>
+
+  <text x="40" y="46" font-size="21" font-weight="700" fill="#1f2328">Job lifecycle</text>
+  <text x="40" y="70" font-size="13" fill="#57606a">What happens between pressing Download and receiving the file.</text>
+
+  <!-- Step 1 -->
+  <rect x="40" y="100" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="70" cy="128" r="14" fill="#0969da"/>
+  <text x="70" y="133" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="94" y="133" font-size="14" font-weight="600" fill="#1f2328">Paste link</text>
+  <text x="58" y="158" font-size="11.5" fill="#57606a">The frontend parses the</text>
+  <text x="58" y="174" font-size="11.5" fill="#57606a">hostname and matches it</text>
+  <text x="58" y="190" font-size="11.5" fill="#57606a">against the platform list.</text>
+
+  <line x1="236" y1="152" x2="266" y2="152" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 2 -->
+  <rect x="272" y="100" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="302" cy="128" r="14" fill="#0969da"/>
+  <text x="302" y="133" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="326" y="133" font-size="14" font-weight="600" fill="#1f2328">Validate</text>
+  <text x="290" y="158" font-size="11.5" fill="#57606a">The API re-checks the host</text>
+  <text x="290" y="174" font-size="11.5" fill="#57606a">server-side and applies the</text>
+  <text x="290" y="190" font-size="11.5" fill="#57606a">rate limit. Other hosts: 422.</text>
+
+  <line x1="468" y1="152" x2="498" y2="152" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 3 -->
+  <rect x="504" y="100" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="534" cy="128" r="14" fill="#0969da"/>
+  <text x="534" y="133" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="558" y="133" font-size="14" font-weight="600" fill="#1f2328">Queue</text>
+  <text x="522" y="158" font-size="11.5" fill="#57606a">A task id is returned at once</text>
+  <text x="522" y="174" font-size="11.5" fill="#57606a">and the job is pushed to</text>
+  <text x="522" y="190" font-size="11.5" fill="#57606a">Redis. The API stays free.</text>
+
+  <line x1="700" y1="152" x2="730" y2="152" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 4 -->
+  <rect x="736" y="100" width="224" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="766" cy="128" r="14" fill="#0969da"/>
+  <text x="766" y="133" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="790" y="133" font-size="14" font-weight="600" fill="#1f2328">Download</text>
+  <text x="754" y="158" font-size="11.5" fill="#57606a">The worker runs yt-dlp with</text>
+  <text x="754" y="174" font-size="11.5" fill="#57606a">aria2c, then FFmpeg muxes</text>
+  <text x="754" y="190" font-size="11.5" fill="#57606a">or converts the result.</text>
+
+  <!-- return row -->
+  <path d="M 848 204 L 848 236 L 848 250" fill="none" stroke="#8c959f" stroke-width="2"/>
+  <path d="M 848 250 L 848 236 L 138 236 L 138 250" fill="none" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 5 -->
+  <rect x="40" y="256" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="70" cy="284" r="14" fill="#1a7f37"/>
+  <text x="70" y="289" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+  <text x="94" y="289" font-size="14" font-weight="600" fill="#1f2328">Stream progress</text>
+  <text x="58" y="314" font-size="11.5" fill="#57606a">Percent, speed and ETA are</text>
+  <text x="58" y="330" font-size="11.5" fill="#57606a">pushed over the WebSocket</text>
+  <text x="58" y="346" font-size="11.5" fill="#57606a">every 0.5 s.</text>
+
+  <line x1="236" y1="308" x2="266" y2="308" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 6 -->
+  <rect x="272" y="256" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="302" cy="284" r="14" fill="#1a7f37"/>
+  <text x="302" y="289" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">6</text>
+  <text x="326" y="289" font-size="13.5" font-weight="600" fill="#1f2328">Fallback</text>
+  <text x="290" y="314" font-size="11.5" fill="#57606a">If the socket cannot open</text>
+  <text x="290" y="330" font-size="11.5" fill="#57606a">within 3 s, the UI polls</text>
+  <text x="290" y="346" font-size="11.5" fill="#57606a">/api/status once a second.</text>
+
+  <line x1="468" y1="308" x2="498" y2="308" stroke="#8c959f" stroke-width="2" marker-end="url(#stepArrow)"/>
+
+  <!-- Step 7 -->
+  <rect x="504" y="256" width="196" height="104" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <circle cx="534" cy="284" r="14" fill="#8250df"/>
+  <text x="534" y="289" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">7</text>
+  <text x="558" y="289" font-size="14" font-weight="600" fill="#1f2328">Hand over file</text>
+  <text x="522" y="314" font-size="11.5" fill="#57606a">On completion the download</text>
+  <text x="522" y="330" font-size="11.5" fill="#57606a">link points at /api/file/{id},</text>
+  <text x="522" y="346" font-size="11.5" fill="#57606a">streamed to the browser.</text>
+
+  <!-- failure short-circuit -->
+  <path d="M 370 204 L 370 214 L 900 214 L 900 214" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="700" y="232" font-size="11.5" font-weight="600" fill="#cf222e">on rejection: 422, nothing is queued</text>
+
+  <text x="40" y="404" font-size="12" fill="#57606a">Steps 5 and 6 deliver the same payload, so the progress bar behaves identically whether or not the WebSocket is available.</text>
+</svg>

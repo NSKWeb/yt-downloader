@@ -1,9 +1,41 @@
 # YT Downloader
 
+[![CI](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-130%20passing-brightgreen)](backend/tests)
+[![Python](https://img.shields.io/badge/python-3.12-blue)](backend/requirements.txt)
+[![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
+
 A fast multi-platform video and audio downloader. Paste a link, pick a format,
 get the file.
 
 Supported platforms: **YouTube, Instagram, Facebook, Twitter/X, Pinterest, TikTok.**
+
+![The downloader interface, ready for a URL](docs/img/screenshot-home.png)
+
+*The home page. The mode toggle (Video / Audio / Image) is rendered from the
+platform registry, so a platform that publishes no separate audio stream never
+shows an Audio tab it cannot honour.*
+
+## Contents
+
+- [What it does](#what-it-does)
+- [Screenshots](#screenshots)
+- [Stack](#stack)
+- [Architecture](#architecture)
+- [How the download logic works](#how-the-download-logic-works)
+- [Platform support matrix](#platform-support-matrix)
+- [API examples](#api-examples)
+- [Endpoints](#endpoints)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Tests](#tests)
+- [Deployment notes](#deployment-notes)
+- [Subdomain architecture](#subdomain-architecture)
+- [Security](#security)
+- [What this project does not do](#what-this-project-does-not-do)
+- [Licence](#licence)
+
+## What it does
 
 - Video from 360p up to 4320p (8K), where the source provides it
 - Audio extraction in MP3, M4A, WAV, FLAC, OPUS, AAC, and OGG, with selectable
@@ -16,6 +48,25 @@ Supported platforms: **YouTube, Instagram, Facebook, Twitter/X, Pinterest, TikTo
 - Per-IP rate limiting and a searchable download history
 
 See [PLAN.md](PLAN.md) for the full feature breakdown.
+
+## Screenshots
+
+All four are real captures of the running stack, not mockups.
+
+| Platform detected | Audio options |
+|---|---|
+| ![A Facebook URL detected, showing the platform badge](docs/img/screenshot-platform-detected.png) | ![Audio mode showing format and bitrate selectors](docs/img/screenshot-audio.png) |
+
+*Left: pasting a link resolves the host against the allowlist and swaps the
+quality grid for that platform's own ladder — a short-form platform offers up to
+1080p, YouTube up to 4320p. Right: audio mode replaces the quality grid with a
+format selector and a bitrate selector (128–320 kbps, or best available).*
+
+![A finished job with the download link](docs/img/screenshot-complete.png)
+
+*Completion. The task ran as a queued job; the API returned a task id
+immediately and the UI watched it. At 100% the progress bar is replaced by a
+direct link to `/api/file/{task_id}`.*
 
 ## Stack
 
@@ -32,24 +83,168 @@ See [PLAN.md](PLAN.md) for the full feature breakdown.
 
 ## Architecture
 
-```
-Browser
-   │  POST /api/download
-   ▼
-FastAPI  ──enqueue──►  Redis  ──►  ARQ worker
-   │                                  │
-   │                                  ├─ yt-dlp (+ aria2c) fetches streams
-   │                                  └─ FFmpeg muxes / converts
-   │                                  │
-   │  WS /ws/progress/{id}  ◄─────────┘  (job record in Redis)
-   │  GET /api/status/{id}  ◄──fallback─┘
-   │
-   └─ GET /api/file/{id}  ──►  finished file
-```
+![Layered system architecture](docs/img/architecture.svg)
+
+The request travels down through six stages, each a separate process. Progress
+and the finished file travel back up along the two return paths on the right.
+
+| Stage | Responsibility | Why it is separate |
+|-------|----------------|--------------------|
+| Browser | Detect the platform, render the format options, open the progress stream | Plain JS, no build step, so the served file is the source file |
+| Nginx | Static pages, TLS, WebSocket upgrade, security headers | Keeps the API free of static-file work and centralises headers |
+| FastAPI | Validate the URL, apply the rate limit, enqueue the job | Request handling stays fast; a slow download never blocks a response |
+| Redis | Job queue, per-job progress record, rate-limit counters | The only shared state between the API and the workers |
+| ARQ worker | Run the download, write progress as it goes | Downloads are long and CPU-heavy; isolating them protects the API |
+| yt-dlp / aria2c / FFmpeg | Resolve formats, fetch bytes, mux or convert | Mature tools that are better at their job than reimplementing them |
+
+The important consequence: the API returns in milliseconds, and the download
+runs somewhere else entirely. Nothing about a 4 GB transfer is holding a
+request open.
+
+### Job lifecycle
+
+![The seven-step job lifecycle](docs/img/request-flow.svg)
 
 Progress is pushed over a WebSocket. If the socket cannot be established — a
 proxy that strips upgrades, a locked-down network — the frontend falls back to
-polling `/api/status` and the user sees the same information.
+polling `/api/status` and the user sees the same information. Both paths deliver
+an identical payload, which is why the fallback needs no separate UI.
+
+## How the download logic works
+
+![Format selection and download pipeline](docs/img/format-pipeline.svg)
+
+The whole speed story lives in one function, `build_format_selector()`, which
+turns the user's mode and quality into a yt-dlp `-f` expression.
+
+**Only YouTube gets the split-stream selector.** YouTube publishes video and
+audio as separate tracks, so `bestvideo[height<=2160]+bestaudio` downloads each
+at its best and FFmpeg muxes them. Every other supported platform serves a
+single already-muxed MP4; asking those for `bestvideo+bestaudio` makes yt-dlp
+fail or silently fall back, so they get a plain `best[height<=N]`.
+
+**aria2c is added only when it can help.** Sixteen parallel connections speed up
+a single direct media stream. They do nothing for a segmented HLS/DASH download,
+because yt-dlp already fetches those segments in parallel. The command builder
+therefore checks for the binary and only then appends the downloader arguments.
+
+**The container choice avoids a re-encode.** Asking for mp4 lets FFmpeg copy the
+streams (`-c copy`) instead of transcoding them. Asking for a container the
+source codec does not fit forces a full re-encode, which is far slower and loses
+quality.
+
+The progress path is the other half. yt-dlp is run with `--newline` and
+`--progress`, its stdout is read line by line, and each line is parsed for
+percentage, speed, and ETA. Those values are written to the job record in Redis,
+which the WebSocket and the polling endpoint both read. One writer, two readers,
+no shared in-process state.
+
+A second `--print` template emits a `before_dl` line carrying the title and size
+estimate, so the UI can show a real filename and a size before the first byte
+lands. It uses the ASCII unit separator (`\x1f`) as the field delimiter, because
+video titles routinely contain spaces and tabs.
+
+## Platform support matrix
+
+![Platform support matrix](docs/img/platform-matrix.svg)
+
+The UI only offers what the platform actually publishes, so nobody selects 4K on
+a platform that caps at 1080p and wonders why the result is 1080p. Two platforms
+are marked "public only" because they gate most content behind an account this
+service deliberately does not use; the UI warns instead of failing mysteriously.
+
+## API examples
+
+Every payload below was captured from the running stack.
+
+### Queue a download
+
+```bash
+curl -X POST http://localhost:12000/api/download \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","mode":"video","quality":"2160p"}'
+```
+
+```json
+{ "task_id": "95c6dd49ab80463abd8a6463837b4fad", "status": "queued" }
+```
+
+The call returns immediately. The download has not started yet — it has been
+placed on the queue.
+
+### Watch progress over the WebSocket
+
+```bash
+# with websocat, or any WS client
+websocat ws://localhost:12000/ws/progress/95c6dd49ab80463abd8a6463837b4fad
+```
+
+```json
+{"task_id":"95c6dd49ab80463abd8a6463837b4fad","platform":"facebook","status":"queued","progress":0.0,"speed":null,"eta":null,"title":null,"filesize":null,"error":null}
+{"task_id":"95c6dd49ab80463abd8a6463837b4fad","platform":"facebook","status":"downloading","progress":0.0,"speed":null,"eta":null,"title":null,"filesize":null,"error":null}
+{"task_id":"95c6dd49ab80463abd8a6463837b4fad","platform":"facebook","status":"complete","progress":100.0,"speed":null,"eta":null,"title":"How to Share With Just Friends","filesize":5388007,"error":null}
+```
+
+`speed` and `eta` are populated only while a transfer is genuinely in flight.
+This clip is 5 MB on a fast link, so it finishes before a sample lands; a large
+download reports them every 0.5 s.
+
+### Poll instead, if the socket is blocked
+
+```bash
+curl http://localhost:12000/api/status/95c6dd49ab80463abd8a6463837b4fad
+```
+
+Same payload as the socket, which is what makes the fallback transparent.
+
+### Read metadata without downloading
+
+```bash
+curl 'http://localhost:12000/api/info?url=https://www.facebook.com/watch/?v=10153231379946729'
+```
+
+```json
+{
+  "title": "How to Share With Just Friends",
+  "uploader": "Facebook",
+  "duration": 74,
+  "thumbnail": null,
+  "webpage_url": "https://www.facebook.com/watch/?v=10153231379946729",
+  "formats_available": []
+}
+```
+
+### Collect the file
+
+```bash
+curl -OJ http://localhost:12000/api/file/95c6dd49ab80463abd8a6463837b4fad
+```
+
+The API streams the file; it is not buffered in memory. The file is deleted
+after `FILE_TTL_SECONDS`.
+
+### What a rejection looks like
+
+A host outside the allowlist is refused before any job exists:
+
+```bash
+curl -X POST http://localhost:12000/api/download \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://evil.example.com/video.mp4"}'
+```
+
+```json
+{
+  "detail": [{
+    "type": "value_error",
+    "loc": ["body", "url"],
+    "msg": "Value error, Unsupported host. Supported: facebook.com, fb.watch, instagram.com, ...",
+    "input": "https://evil.example.com/video.mp4"
+  }]
+}
+```
+
+`HTTP 422`. Nothing is queued, and no request is ever made to that host.
 
 ## Endpoints
 
@@ -134,14 +329,14 @@ All settings come from environment variables. See
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest -q      # 128 tests
+python -m pytest -q      # 130 tests
 ruff check app tests     # lint
 ```
 
 Tests cover URL validation, platform detection, per-platform format-selection
 logic, audio bitrate mapping, progress parsing, job lifecycle, rate limiting,
-history recording, path-traversal rejection, and the absence of bot-bypass
-flags. `ruff` and `pip-audit` also run in CI.
+history recording, path-traversal rejection, metadata coercion, and the absence
+of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
 
 ## Deployment notes
 
@@ -151,6 +346,14 @@ flags. `ruff` and `pip-audit` also run in CI.
   code failing. Run this on a residential or well-reputed host, or keep the
   volume low. Instagram and Pinterest can return `403` to a datacenter IP for
   the same reason.
+- **aria2c can abort where yt-dlp would have finished.** Google's video hosts
+  occasionally reset a connection mid-transfer, and aria2c gives up on it. This
+  was observed on a large YouTube fetch. Lower `ARIA2C_CONNECTIONS` for those
+  hosts, or drop the aria2c downloader entirely for a retry.
+- **Platforms break, and yt-dlp fixes them.** A Facebook video returned
+  `Cannot parse data` during testing because the extractor was behind a site
+  change. The fix is `pip install -U yt-dlp`, not a code change here. Pin and
+  update it deliberately.
 - **Bandwidth.** Proxying files costs egress. 10,000 downloads averaging 1.5 GB
   is 15 TB of traffic. Budget for it or run it privately.
 - **Legal.** Downloading is lawful only for content you have the right to save.

@@ -80,6 +80,33 @@ docker compose config --quiet   # validate before pushing
   still appear so the message shown to users is the actual cause.
 - `--no-playlist` is always set; the app is single-video unless playlist mode is
   explicitly requested (YouTube only).
+- **`file_editor` writes files mode 600**, which breaks anything served from the
+  read-only `frontend/` mount (403) and can break tooling that reads the repo as
+  another user. After creating a file, run `chmod 644 <file>`. This has bitten
+  `robots.txt`, `sitemap.xml`, and `README.md` so far.
+- **yt-dlp reports `duration` as a float** (e.g. `74.304`) and the string `"NA"`
+  when unknown. `InfoResponse.duration` is an `int` with a `mode="before"`
+  validator that truncates via `float()` and maps unparseable values to `None`.
+  Without it `/api/info` returns 500, not 422 — the response model raises during
+  serialisation, after the handler has already returned.
+- **`/api/info` had no test coverage**, which is why the 500 above survived. It
+  now has two tests. Add route tests when adding routes.
+
+## README assets
+
+- `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
+  pipeline, platform matrix). They use only text, rects, lines and paths, so
+  GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above
+  and check text fits its box before committing — an SVG that overflows looks
+  broken on the repo page and no linter catches it.
+- `docs/img/screenshot-*.png` are real captures of the running stack, taken with
+  headless Chromium over the DevTools Protocol. To reproduce, start the stack,
+  then drive `http://localhost:12000/` with CDP: `Page.navigate`,
+  `Runtime.evaluate` to set the URL input and dispatch `input`/`change`, click
+  `#submit`, and `Page.captureScreenshot`. Do not hand-write these; a stale
+  screenshot is worse than none.
+- Markdown payloads in the README were captured from the live API, not invented.
+  Re-capture them if the response models change.
 
 ## Scope boundary
 

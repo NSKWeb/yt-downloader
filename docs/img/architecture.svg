@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="1000" height="800" role="img" aria-labelledby="archTitle archDesc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="archTitle">YT Downloader system architecture</title>
+  <desc id="archDesc">Layered architecture. A request travels down through browser, nginx, FastAPI, Redis and the ARQ worker to yt-dlp, aria2c and FFmpeg. Progress returns upward over a WebSocket with a polling fallback, and the finished file is served by GET /api/file.</desc>
+
+  <defs>
+    <marker id="reqArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0969da"/>
+    </marker>
+    <marker id="progArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a7f37"/>
+    </marker>
+    <marker id="fileArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8250df"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="800" rx="16" fill="#f6f8fa"/>
+
+  <text x="40" y="46" font-size="21" font-weight="700" fill="#1f2328">YT Downloader — system architecture</text>
+  <text x="40" y="70" font-size="13" fill="#57606a">Request path flows down. Progress and the finished file flow back up. Every stage is a separate process, so a slow download never blocks the API.</text>
+
+  <!-- 1. Browser -->
+  <rect x="120" y="100" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="100" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="128" font-size="15" font-weight="600" fill="#1f2328">Browser — plain HTML / CSS / JS</text>
+  <text x="148" y="149" font-size="12.5" fill="#57606a">No build step. Detects the platform, renders the format options, opens the progress stream.</text>
+
+  <line x1="430" y1="168" x2="430" y2="190" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 2. Nginx -->
+  <rect x="120" y="196" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="196" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="224" font-size="15" font-weight="600" fill="#1f2328">Nginx — edge</text>
+  <text x="148" y="245" font-size="12.5" fill="#57606a">Serves static pages, terminates TLS, upgrades the WebSocket, sets security headers.</text>
+
+  <line x1="430" y1="264" x2="430" y2="286" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 3. FastAPI -->
+  <rect x="120" y="292" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="292" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="320" font-size="15" font-weight="600" fill="#1f2328">FastAPI — API</text>
+  <text x="148" y="341" font-size="12.5" fill="#57606a">Validates the URL against the six-platform allowlist, applies the rate limit, enqueues a job.</text>
+
+  <line x1="430" y1="360" x2="430" y2="382" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 4. Redis -->
+  <rect x="120" y="388" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="388" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="416" font-size="15" font-weight="600" fill="#1f2328">Redis — queue and job state</text>
+  <text x="148" y="437" font-size="12.5" fill="#57606a">Holds the job queue, the per-job progress record, and the sliding-window rate-limit counters.</text>
+
+  <line x1="430" y1="456" x2="430" y2="478" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 5. ARQ worker -->
+  <rect x="120" y="484" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="484" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="512" font-size="15" font-weight="600" fill="#1f2328">ARQ worker — separate process</text>
+  <text x="148" y="533" font-size="12.5" fill="#57606a">Dequeues the job, runs the download, writes progress to Redis as it goes.</text>
+
+  <line x1="430" y1="552" x2="430" y2="574" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 6. Engines -->
+  <rect x="120" y="580" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="580" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="608" font-size="15" font-weight="600" fill="#1f2328">yt-dlp → aria2c → FFmpeg</text>
+  <text x="148" y="629" font-size="12.5" fill="#57606a">yt-dlp picks the format and parses progress; aria2c fetches it; FFmpeg muxes or converts.</text>
+
+  <line x1="430" y1="648" x2="430" y2="670" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+
+  <!-- 7. Storage -->
+  <rect x="120" y="676" width="620" height="68" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <rect x="120" y="676" width="5" height="68" rx="2.5" fill="#0969da"/>
+  <text x="148" y="704" font-size="15" font-weight="600" fill="#1f2328">Filesystem + SQLite</text>
+  <text x="148" y="725" font-size="12.5" fill="#57606a">The finished file (deleted after FILE_TTL_SECONDS) and the searchable job history.</text>
+
+  <!-- Progress return path -->
+  <path d="M 740 422 L 830 422 L 830 134 L 748 134" fill="none" stroke="#1a7f37" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#progArrow)"/>
+  <text x="842" y="250" font-size="12.5" font-weight="600" fill="#1a7f37">Progress up</text>
+  <text x="842" y="268" font-size="11.5" fill="#57606a">WS</text>
+  <text x="842" y="284" font-size="11.5" fill="#57606a">/ws/progress/{id}</text>
+  <text x="842" y="300" font-size="11.5" fill="#57606a">fallback:</text>
+  <text x="842" y="316" font-size="11.5" fill="#57606a">GET /api/status</text>
+
+  <!-- File return path -->
+  <path d="M 740 710 L 930 710 L 930 150 L 748 150" fill="none" stroke="#8250df" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#fileArrow)"/>
+  <text x="842" y="470" font-size="12.5" font-weight="600" fill="#8250df">File down</text>
+  <text x="842" y="488" font-size="11.5" fill="#57606a">GET /api/file/{id}</text>
+  <text x="842" y="504" font-size="11.5" fill="#57606a">streamed by the API,</text>
+  <text x="842" y="520" font-size="11.5" fill="#57606a">not buffered in memory</text>
+
+  <!-- Legend -->
+  <line x1="40" y1="772" x2="70" y2="772" stroke="#0969da" stroke-width="2" marker-end="url(#reqArrow)"/>
+  <text x="78" y="776" font-size="12" fill="#57606a">request</text>
+  <line x1="170" y1="772" x2="200" y2="772" stroke="#1a7f37" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#progArrow)"/>
+  <text x="208" y="776" font-size="12" fill="#57606a">progress</text>
+  <line x1="300" y1="772" x2="330" y2="772" stroke="#8250df" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#fileArrow)"/>
+  <text x="338" y="776" font-size="12" fill="#57606a">file</text>
+</svg>
