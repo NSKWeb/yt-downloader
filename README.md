@@ -71,28 +71,34 @@ direct link to `/api/file/{task_id}`.*
 
 ## Colour and accessibility
 
-The accent is a rose (`#f2789f`), not a saturated red. Bright red on a dark
-surface is hard to look at for long — it vibrates against the background, and it
-is the colour people are trained to read as "error", which is the wrong signal
-for a normal primary action.
+The accent is a sky blue. It has been through two revisions — a saturated red
+(`#ff0033`), then a rose — because bright red on a dark surface is uncomfortable
+to look at for long, and it reads as "error", which is the wrong signal for an
+ordinary primary action.
 
-One variable cannot serve both roles, so the palette splits them:
+A sky blue light enough to read as text on the dark background is far too light
+to carry white text, so the palette splits the roles:
 
 | Token | Value | Used for | Contrast |
 |-------|-------|----------|----------|
-| `--accent` | `#f2789f` | Link text, borders, progress fill, chips | 7.18:1 on `--bg` |
-| `--accent-solid` | `#b02a45` | Filled buttons and active tabs, under white text | 6.44:1 against white |
-| `--accent-hover` | `#c9334b` | Hover state for the filled buttons | 5.17:1 against white |
+| `--accent` | `#7dd3fc` | Link text, borders, progress fill, chips | 11.35:1 on `--bg` |
+| `--accent-solid` | `#38bdf8` | Filled buttons and active tabs | — |
+| `--accent-ink` | `#062a3d` | Text on `--accent-solid` | 6.97:1 |
+| `--accent-hover` | `#0ea5e9` | Hover fill for those buttons | 5.39:1 with the ink |
 
-This is not cosmetic. The previous `--accent: #ff0033` measured **3.96:1**
-against white text on the primary button, below the WCAG AA threshold of 4.5:1.
-The rose pair clears AA in both directions, so the same token is safe as body
-text on the dark background and as a button surface under white text. The error
-alert was softened to a rose tint as well (`#3a1a20` on `#ffc9d2`, 10.78:1) so
-it stays distinguishable from the accent without shouting.
+Filled surfaces use the dark ink, never white: white on any of these blues
+measures about 2:1, far below the WCAG AA threshold of 4.5:1. The original red
+was not only harsh, it also failed at 3.96:1 against its own white button label.
+Every value above clears AA.
 
-All colours live in the `:root` block of `frontend/assets/style.css`. Change
-them there; no page or script hardcodes a colour.
+The error alert keeps a red tint on purpose, because red is the correct signal
+for an error (`#3a1a20` on `#ffc9d2`, 10.78:1). It is deliberately distinct from
+the blue accent.
+
+All colours live in the `:root` block of `frontend/assets/style.css`, and the
+favicon uses `--accent-solid`. Change them there; no page or script hardcodes a
+colour. Because the screenshots show the UI, changing the palette means
+recapturing them.
 
 ## Stack
 

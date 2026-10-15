@@ -5,15 +5,18 @@
   --border: #2a3342;
   --text: #e6edf3;
   --muted: #8b98a5;
-  /* Rose accent, replaces the earlier saturated red. Chosen so that both
-     directions of use clear WCAG AA (4.5:1):
-       --accent        link text on --bg      7.18:1
-       --accent-solid  filled button surfaces 6.44:1 against white text
-     Keep the two roles separate: --accent is too light for white text, and
-     --accent-solid is too dark for body text on --bg. */
-  --accent: #f2789f;
-  --accent-hover: #c9334b;
-  --accent-solid: #b02a45;
+  /* Sky-blue accent. Two fill roles plus an ink, because a sky blue that
+     reads as text on --bg is far too light to carry white text:
+       --accent        link text, borders, progress fill   11.35:1 on --bg
+       --accent-solid  filled buttons / active tabs         sky-400
+       --accent-ink    text sitting on --accent-solid       6.97:1
+       --accent-hover  hover fill, still clears ink         5.39:1
+     Filled surfaces use dark ink, never white. White on any of these blues
+     tops out around 2:1. */
+  --accent: #7dd3fc;
+  --accent-solid: #38bdf8;
+  --accent-ink: #062a3d;
+  --accent-hover: #0ea5e9;
   --ok: #3fb950;
   --warn: #d29922;
   --radius: 10px;
@@ -120,7 +123,7 @@ nav.site a:hover { color: var(--text); text-decoration: none; }
   transition: background 0.15s, color 0.15s;
 }
 
-.toggle button.active { background: var(--accent-solid); color: #fff; }
+.toggle button.active { background: var(--accent-solid); color: var(--accent-ink); }
 .toggle button:hover:not(.active) { color: var(--text); }
 
 /* ---------- Input ---------- */
@@ -174,14 +177,14 @@ input:focus, textarea:focus, select:focus {
 .quality-grid button.active {
   background: var(--accent-solid);
   border-color: var(--accent-solid);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 /* ---------- Primary button ---------- */
 .btn-primary {
   width: 100%;
   background: var(--accent-solid);
-  color: #fff;
+  color: var(--accent-ink);
   border: 0;
   border-radius: 8px;
   padding: 15px;

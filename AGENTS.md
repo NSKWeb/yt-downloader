@@ -94,16 +94,24 @@ docker compose config --quiet   # validate before pushing
 
 ## README assets
 
-- **The accent palette is rose, not red, and splits into two tokens.** Bright
-  red (`#ff0033`) vibrates on the dark background and reads as "error" on a
-  primary action; it also measured only 3.96:1 against white button text, below
-  WCAG AA. Use `--accent: #f2789f` for text, borders and fills on dark surfaces
-  (7.18:1), and `--accent-solid: #b02a45` for any filled surface that carries
-  white text (6.44:1). Never put white text on `--accent`; never put body text
-  on `--accent-solid`. All colours live in `:root` in
-  `frontend/assets/style.css` — no page or script hardcodes one, so the palette
-  is a one-file change. Changing it means recapturing the screenshots, since
-  they show the UI.
+- **The accent palette is sky blue, and splits across four tokens.** Bright red
+  (`#ff0033`) vibrates on the dark background, reads as "error" on a primary
+  action, and measured only 3.96:1 against its own white button label — below
+  WCAG AA. The roles cannot share one variable: a sky blue light enough to read
+  as text on `--bg` is far too light for white text on top of it. So:
+  - `--accent: #7dd3fc` — text, borders, progress fill on dark (11.35:1)
+  - `--accent-solid: #38bdf8` — filled buttons and active tabs
+  - `--accent-ink: #062a3d` — the text on those filled surfaces (6.97:1)
+  - `--accent-hover: #0ea5e9` — hover fill, still clears the ink (5.39:1)
+
+  Filled surfaces use `--accent-ink`, **never** `#fff`; white on these blues is
+  about 2:1. The error alert keeps a red tint deliberately (`#3a1a20` on
+  `#ffc9d2`), because red is the right signal for an error and must stay
+  distinct from the accent. All colours live in `:root` in
+  `frontend/assets/style.css`, and `frontend/assets/favicon.ico` is a flat
+  `--accent-solid` square — no page or script hardcodes a colour, so the palette
+  is a one-file change. Changing it means recapturing the screenshots and
+  rewriting the favicon, since both bake in the colour.
 - `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
   pipeline, platform matrix). They use only text, rects, lines and paths, so
   GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above
