@@ -15,6 +15,7 @@ class FakeRedis:
     def __init__(self):
         self.store: dict[str, str] = {}
         self.jobs: list[tuple] = []
+        self.zsets: dict[str, dict] = {}
 
     async def set(self, key, value, ex=None):
         self.store[key] = value
@@ -31,12 +32,62 @@ class FakeRedis:
     async def close(self):
         pass
 
+    # --- rate limiter support -------------------------------------------------
+    def pipeline(self):
+        return _FakePipeline(self.zsets)
+
+
+class _FakePipeline:
+    def __init__(self, store):
+        self.store = store
+        self.ops = []
+
+    def zremrangebyscore(self, key, _min, max_score):
+        self.ops.append(("trim", key, max_score))
+        return self
+
+    def zadd(self, key, mapping):
+        self.ops.append(("add", key, mapping))
+        return self
+
+    def zcard(self, key):
+        self.ops.append(("card", key))
+        return self
+
+    def expire(self, key, seconds):
+        self.ops.append(("expire", key, seconds))
+        return self
+
+    async def execute(self):
+        results = []
+        for op in self.ops:
+            if op[0] == "trim":
+                _, key, cutoff = op
+                entries = self.store.setdefault(key, {})
+                for member in [m for m, s in entries.items() if s <= cutoff]:
+                    del entries[member]
+                results.append(None)
+            elif op[0] == "add":
+                _, key, mapping = op
+                self.store.setdefault(key, {}).update(mapping)
+                results.append(1)
+            elif op[0] == "card":
+                _, key = op
+                results.append(len(self.store.get(key, {})))
+            else:
+                results.append(True)
+        return results
+
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
     # Deliberately not using `with TestClient(app)` — that would run the
     # lifespan handler and open a real Redis pool. The API layer only touches
     # app.state.redis, so injecting the stub is enough.
+    # Rate limiting is off here so lifecycle tests are not affected by it; it
+    # has its own dedicated tests in test_rate_limit.py.
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    monkeypatch.setattr(settings, "history_enabled", False)
     fake = FakeRedis()
     app.state.redis = fake
     settings.download_dir.mkdir(parents=True, exist_ok=True)
@@ -172,3 +223,133 @@ class TestJobLifecycle:
 
         r = client.get("/api/file/evil")
         assert r.status_code in (400, 410)
+
+
+class TestPlatformsEndpoint:
+    def test_lists_all_six_platforms(self, client):
+        r = client.get("/api/platforms")
+        assert r.status_code == 200
+        keys = {p["key"] for p in r.json()["platforms"]}
+        assert keys == {
+            "youtube",
+            "instagram",
+            "facebook",
+            "twitter",
+            "pinterest",
+            "tiktok",
+        }
+
+    def test_each_platform_reports_its_options(self, client):
+        for p in client.get("/api/platforms").json()["platforms"]:
+            assert p["video_qualities"], p["key"]
+            assert p["audio_formats"], p["key"]
+            assert p["owner"], p["key"]
+
+    def test_capability_flags_present(self, client):
+        by_key = {p["key"]: p for p in client.get("/api/platforms").json()["platforms"]}
+        assert by_key["youtube"]["supports_playlists"] is True
+        assert by_key["youtube"]["supports_subtitles"] is True
+        assert by_key["tiktok"]["supports_playlists"] is False
+        assert by_key["pinterest"]["supports_images"] is True
+
+
+class TestMultiPlatformRequests:
+    @pytest.mark.parametrize(
+        "url,expected_platform",
+        [
+            ("https://www.tiktok.com/@a/video/1", "tiktok"),
+            ("https://x.com/u/status/1", "twitter"),
+            ("https://www.facebook.com/watch/?v=1", "facebook"),
+            ("https://www.pinterest.com/pin/1/", "pinterest"),
+            ("https://www.instagram.com/reel/a/", "instagram"),
+        ],
+    )
+    def test_platform_recorded_on_job(self, client, url, expected_platform):
+        r = client.post("/api/download", json={"url": url, "quality": "720p"})
+        assert r.status_code == 200
+        task_id = r.json()["task_id"]
+        status = client.get(f"/api/status/{task_id}").json()
+        assert status["platform"] == expected_platform
+
+    def test_platform_key_is_passed_to_the_worker(self, client):
+        client.post(
+            "/api/download",
+            json={"url": "https://www.tiktok.com/@a/video/1", "quality": "720p"},
+        )
+        name, args = app.state.redis.jobs[-1]
+        assert name == "download_task"
+        assert args[5] == "tiktok"
+
+    def test_playlist_and_subtitles_reach_the_worker(self, client):
+        client.post(
+            "/api/download",
+            json={
+                "url": "https://youtu.be/x",
+                "quality": "720p",
+                "playlist": True,
+                "subtitles": True,
+                "audio_quality": "320",
+            },
+        )
+        _, args = app.state.redis.jobs[-1]
+        assert args[6] is True  # playlist
+        assert args[7] is True  # subtitles
+        assert args[8] == "320"  # audio_quality
+
+    def test_playlist_rejected_where_unsupported(self, client):
+        r = client.post(
+            "/api/download",
+            json={"url": "https://www.tiktok.com/@a/video/1", "playlist": True},
+        )
+        assert r.status_code == 422
+        assert "playlist" in r.text.lower()
+
+    def test_quality_ceiling_enforced_per_platform(self, client):
+        r = client.post(
+            "/api/download",
+            json={"url": "https://www.tiktok.com/@a/video/1", "quality": "2160p"},
+        )
+        assert r.status_code == 422
+
+    def test_lookalike_host_is_rejected(self, client):
+        r = client.post(
+            "/api/download", json={"url": "https://tiktok.com.evil.net/@a/video/1"}
+        )
+        assert r.status_code == 422
+
+
+class TestHistoryEndpoints:
+    def test_history_empty_when_disabled(self, client):
+        r = client.get("/api/history")
+        assert r.status_code == 200
+        assert r.json()["entries"] == []
+
+    def test_history_records_a_job(self, client, monkeypatch, tmp_path):
+        import asyncio
+
+        from app.history import init_db
+
+        monkeypatch.setattr(settings, "history_enabled", True)
+        monkeypatch.setattr(settings, "database_path", tmp_path / "h.db")
+        # The lifespan handler creates the table in production; the client
+        # fixture skips the lifespan, so create it here.
+        asyncio.run(init_db())
+
+        client.post(
+            "/api/download",
+            json={"url": "https://www.tiktok.com/@a/video/1", "quality": "720p"},
+        )
+        r = client.get("/api/history")
+        assert r.status_code == 200
+        entries = r.json()["entries"]
+        assert len(entries) == 1
+        assert entries[0]["platform"] == "tiktok"
+
+    def test_history_limit_is_clamped(self, client):
+        assert client.get("/api/history?limit=0").status_code == 200
+        assert client.get("/api/history?limit=99999").status_code == 200
+
+    def test_delete_history_entry(self, client):
+        r = client.delete("/api/history/someid")
+        assert r.status_code == 200
+        assert r.json()["deleted"] == "someid"

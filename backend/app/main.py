@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
 
 from arq import create_pool
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .config import settings
 from .downloader import probe_info
+from .history import delete_entry, init_db, list_recent, record_job
 from .models import (
     DownloadRequest,
     DownloadResponse,
@@ -21,6 +23,8 @@ from .models import (
     JobStatus,
     StatusResponse,
 )
+from .platforms import detect_platform, platform_catalog, platform_for_subdomain
+from .rate_limit import check_rate_limit
 from .storage import load_job, save_job
 
 logging.basicConfig(level=logging.INFO)
@@ -31,15 +35,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     settings.download_dir.mkdir(parents=True, exist_ok=True)
     app.state.redis = await create_pool(settings.redis_settings)
+    await init_db()
     logger.info("connected to redis at %s:%s", settings.redis_host, settings.redis_port)
     yield
     await app.state.redis.close()
 
 
 app = FastAPI(
-    title="yt-downloader",
-    version="1.0.0",
-    description="Fast YouTube video and audio downloader.",
+    title="multi-downloader",
+    version="2.0.0",
+    description="Multi-platform video and audio downloader.",
     lifespan=lifespan,
 )
 
@@ -52,6 +57,21 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def platform_subdomain_middleware(request: Request, call_next):
+    """Record which platform subdomain served the request.
+
+    Purely informational: it sets `request.state.subdomain_platform` so handlers
+    can default to the subdomain's platform, and logs the mapping. It never
+    grants access; the URL allowlist in DownloadRequest is the authority.
+    """
+    platform = platform_for_subdomain(request.headers.get("host", ""))
+    request.state.subdomain_platform = platform
+    if platform is not None and request.url.path.startswith("/api/"):
+        logger.debug("subdomain=%s path=%s", platform.key, request.url.path)
+    return await call_next(request)
+
+
 def _redis(request: Request):
     return request.app.state.redis
 
@@ -61,20 +81,34 @@ async def health() -> dict:
     return {"status": "ok", "version": app.version}
 
 
-@app.post("/api/download", response_model=DownloadResponse)
+@app.get("/api/platforms")
+async def list_platforms() -> dict:
+    """Describe the supported platforms and their options."""
+    return {"platforms": platform_catalog()}
+
+
+@app.post(
+    "/api/download",
+    response_model=DownloadResponse,
+    dependencies=[Depends(check_rate_limit)],
+)
 async def create_download(payload: DownloadRequest, request: Request) -> DownloadResponse:
     """Validate the request, persist a job record, and enqueue the work."""
     redis = _redis(request)
+    platform = detect_platform(payload.url)
+    platform_key = platform.key if platform else "youtube"
     task_id = uuid.uuid4().hex
     job = JobState(
         task_id=task_id,
         url=payload.url,
+        platform=platform_key,
         mode=payload.mode,
         quality=payload.quality,
         audio_format=payload.audio_format if payload.mode == "audio" else None,
         status=JobStatus.QUEUED,
     )
     await save_job(redis, job)
+    await record_job(job)
     await redis.enqueue_job(
         "download_task",
         task_id,
@@ -82,9 +116,28 @@ async def create_download(payload: DownloadRequest, request: Request) -> Downloa
         payload.mode,
         payload.quality,
         payload.audio_format,
+        platform_key,
+        payload.playlist,
+        payload.subtitles,
+        payload.audio_quality,
     )
-    logger.info("queued job %s (%s %s)", task_id, payload.mode, payload.quality)
+    logger.info(
+        "queued job %s (%s %s %s)", task_id, platform_key, payload.mode, payload.quality
+    )
     return DownloadResponse(task_id=task_id, status=JobStatus.QUEUED)
+
+
+@app.get("/api/history")
+async def get_history(limit: int = 50, platform: str | None = None) -> dict:
+    """Recent downloads, newest first. Survives the Redis TTL."""
+    limit = max(1, min(limit, 200))
+    return {"entries": await list_recent(limit=limit, platform=platform)}
+
+
+@app.delete("/api/history/{task_id}")
+async def delete_history(task_id: str) -> dict:
+    await delete_entry(task_id)
+    return {"deleted": task_id}
 
 
 @app.get("/api/status/{task_id}", response_model=StatusResponse)
@@ -94,6 +147,7 @@ async def get_status(task_id: str, request: Request) -> StatusResponse:
         raise HTTPException(status_code=404, detail="Unknown task id")
     return StatusResponse(
         task_id=job.task_id,
+        platform=job.platform,
         status=job.status,
         progress=job.progress,
         speed=job.speed,
@@ -124,6 +178,52 @@ async def get_file(task_id: str, request: Request):
         filename=job.filename,
         media_type="application/octet-stream",
     )
+
+
+@app.websocket("/ws/progress/{task_id}")
+async def ws_progress(websocket: WebSocket, task_id: str):
+    """Stream job progress over a WebSocket.
+
+    The client polls Redis on the server side instead of the browser polling
+    HTTP, which removes the request overhead of a status loop. The connection
+    closes once the job reaches a terminal state.
+    """
+    await websocket.accept()
+    redis = websocket.app.state.redis
+
+    terminal = {JobStatus.COMPLETE, JobStatus.FAILED}
+    try:
+        for _ in range(settings.ws_max_updates):
+            job = await load_job(redis, task_id)
+            if job is None:
+                await websocket.send_json({"error": "unknown task id"})
+                break
+
+            await websocket.send_json(
+                {
+                    "task_id": job.task_id,
+                    "platform": job.platform,
+                    "status": job.status.value,
+                    "progress": job.progress,
+                    "speed": job.speed,
+                    "eta": job.eta,
+                    "title": job.title,
+                    "filesize": job.filesize,
+                    "error": job.error,
+                }
+            )
+            if job.status in terminal:
+                break
+            await asyncio.sleep(settings.ws_poll_interval)
+    except WebSocketDisconnect:
+        return
+    except Exception:  # noqa: BLE001 - never leak a traceback to the client
+        logger.warning("websocket closed unexpectedly for %s", task_id, exc_info=True)
+    finally:
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass
 
 
 @app.get("/api/info", response_model=InfoResponse)

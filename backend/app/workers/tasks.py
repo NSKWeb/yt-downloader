@@ -13,6 +13,7 @@ from arq import cron
 
 from ..config import settings
 from ..downloader import run_download
+from ..history import init_db, record_job
 from ..models import JobStatus
 from ..storage import load_job, save_job, update_job
 
@@ -26,6 +27,10 @@ async def download_task(
     mode: str,
     quality: str,
     audio_format: str,
+    platform_key: str = "youtube",
+    playlist: bool = False,
+    subtitles: bool = False,
+    audio_quality: str = "192",
 ) -> None:
     """Download one URL and keep the job record updated throughout."""
     redis = ctx["redis"]
@@ -47,6 +52,14 @@ async def download_task(
             eta=data.get("eta"),
         )
 
+    async def on_meta(data: dict) -> None:
+        await update_job(
+            redis,
+            task_id,
+            title=data.get("title"),
+            filesize=data.get("filesize"),
+        )
+
     try:
         path = await run_download(
             url=url,
@@ -55,6 +68,11 @@ async def download_task(
             audio_format=audio_format,
             output_dir=settings.download_dir,
             on_progress=on_progress,
+            on_meta=on_meta,
+            platform_key=platform_key,
+            playlist=playlist,
+            subtitles=subtitles,
+            audio_quality=audio_quality,
         )
     except Exception as exc:  # noqa: BLE001 - surfaced to the user as-is
         logger.exception("download failed for %s", task_id)
@@ -82,6 +100,8 @@ async def _finish(redis, task_id: str, status: JobStatus, **fields) -> None:
         setattr(job, key, value)
     job.updated_at = datetime.now(timezone.utc)
     await save_job(redis, job)
+    # Mirror the terminal state into SQLite, which outlives the Redis TTL.
+    await record_job(job)
 
 
 async def cleanup_expired_files(ctx: dict) -> int:
@@ -114,3 +134,7 @@ class WorkerSettings:
     max_jobs = settings.max_concurrent_jobs
     job_timeout = 60 * 60 * 2
     keep_result = 60 * 60 * 24
+
+    @staticmethod
+    async def on_startup(ctx: dict) -> None:
+        await init_db()

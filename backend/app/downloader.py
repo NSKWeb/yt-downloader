@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from .config import settings
+from .platforms import PLATFORMS
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +42,45 @@ _PROGRESS_RE = re.compile(
 )
 
 
-def build_format_selector(mode: str, quality: str) -> str:
-    """Return the yt-dlp -f expression for the requested mode and quality."""
+def build_format_selector(mode: str, quality: str, platform_key: str = "youtube") -> str:
+    """Return the yt-dlp -f expression for the requested mode and quality.
+
+    The selector is intentionally conservative: `bestvideo+bestaudio` only
+    applies where a platform actually publishes separate streams. Elsewhere we
+    fall back to a plain `best`, which is correct for the single-file MP4s that
+    short-form platforms serve.
+    """
+    platform = PLATFORMS.get(platform_key)
+
+    if mode == "image":
+        return "best"
+
     if mode == "audio":
         return "bestaudio/best"
+
+    # Only YouTube reliably exposes split video/audio tracks.
+    if platform is None or platform.key != "youtube":
+        if quality == "best":
+            return "best"
+        height = quality.removesuffix("p")
+        return f"best[height<={height}]/best"
+
     if quality == "best":
         return "bestvideo+bestaudio/best"
     height = quality.removesuffix("p")
-    return (
-        f"bestvideo[height<={height}]+bestaudio/"
-        f"best[height<={height}]"
-    )
+    return f"bestvideo[height<={height}]+bestaudio/best[height<={height}]"
+
+
+def audio_quality_arg(audio_quality: str) -> str:
+    """Translate a kbps target into yt-dlp's --audio-quality value.
+
+    yt-dlp accepts a bitrate like `192K` or a VBR grade from 0 (best) to 9
+    (worst). `best` maps to VBR 0, which keeps the source quality.
+    """
+    value = (audio_quality or "").strip().lower()
+    if value in ("", "best"):
+        return "0"
+    return f"{value}K"
 
 
 def build_command(
@@ -60,31 +89,57 @@ def build_command(
     quality: str,
     audio_format: str,
     output_dir: Path,
+    platform_key: str = "youtube",
+    playlist: bool = False,
+    subtitles: bool = False,
+    audio_quality: str = "192",
 ) -> list[str]:
     """Assemble the yt-dlp argv for one job."""
     outtmpl = str(output_dir / "%(title).150B [%(id)s].%(ext)s")
     cmd: list[str] = [
         *YTDLP,
-        "--no-playlist",
         "--no-warnings",
         "--newline",
         "--progress",
         "--retries", str(settings.retries),
         "--socket-timeout", str(settings.socket_timeout),
-        "--merge-output-format", "mp4",
         "--print", "after_move:filepath",
+        # Emitted before the download starts so the UI can show a title and a
+        # size estimate while the transfer is still running. The unit separator
+        # keeps titles containing spaces or tabs parseable.
+        "--print", "before_dl:__META__%(title)s\x1f%(filesize,filesize_approx)s",
         "-o", outtmpl,
     ]
 
-    if mode == "audio":
+    # --no-playlist is the safe default: a watch URL carrying a &list= parameter
+    # should still fetch one video. Playlist mode opts in explicitly.
+    if playlist:
+        cmd.append("--yes-playlist")
+    else:
+        cmd.append("--no-playlist")
+
+    if subtitles:
         cmd += [
-            "-f", build_format_selector(mode, quality),
+            "--write-subs",
+            "--write-auto-subs",
+            "--sub-langs", "en.*",
+            "--convert-subs", "srt",
+        ]
+
+    if mode == "image":
+        cmd += ["-f", "best"]
+    elif mode == "audio":
+        cmd += [
+            "-f", build_format_selector(mode, quality, platform_key),
             "--extract-audio",
             "--audio-format", audio_format,
-            "--audio-quality", "0",
+            "--audio-quality", audio_quality_arg(audio_quality),
         ]
     else:
-        cmd += ["-f", build_format_selector(mode, quality)]
+        cmd += [
+            "-f", build_format_selector(mode, quality, platform_key),
+            "--merge-output-format", "mp4",
+        ]
 
     # Multi-connection acceleration. aria2c only helps when yt-dlp is fetching
     # a single direct media stream; it is a no-op for segmented (m3u8/DASH)
@@ -126,13 +181,27 @@ async def run_download(
     output_dir: Path,
     on_progress: ProgressCallback | None = None,
     on_meta: Callable[[dict], Awaitable[None] | None] | None = None,
+    platform_key: str = "youtube",
+    playlist: bool = False,
+    subtitles: bool = False,
+    audio_quality: str = "192",
 ) -> Path:
     """Run yt-dlp and return the path to the finished file.
 
     Raises RuntimeError with yt-dlp's own message on failure.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    cmd = build_command(url, mode, quality, audio_format, output_dir)
+    cmd = build_command(
+        url,
+        mode,
+        quality,
+        audio_format,
+        output_dir,
+        platform_key,
+        playlist=playlist,
+        subtitles=subtitles,
+        audio_quality=audio_quality,
+    )
     logger.info("starting download: %s", " ".join(cmd[:-1]) + " <url>")
 
     proc = await asyncio.create_subprocess_exec(
@@ -156,6 +225,18 @@ async def run_download(
         progress = _parse_progress_line(line)
         if progress and on_progress:
             result = on_progress(progress)
+            if asyncio.iscoroutine(result):
+                await result
+            continue
+
+        # Metadata line, emitted once before the transfer begins.
+        if line.startswith("__META__") and on_meta:
+            payload = line[len("__META__"):]
+            title, _, raw_size = payload.partition("\x1f")
+            size: int | None = None
+            if raw_size.strip().isdigit():
+                size = int(raw_size.strip())
+            result = on_meta({"title": title or None, "filesize": size})
             if asyncio.iscoroutine(result):
                 await result
             continue
