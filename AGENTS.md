@@ -191,7 +191,11 @@ docker compose config --quiet   # validate before pushing
 - `docs/img/screenshot-*.png` are real captures of the running stack, taken with
   headless Chromium over the DevTools Protocol at 1280x860 with
   `deviceScaleFactor: 2`, so they land at 2560x1720. Keep that size; the README
-  lays them out side by side. To reproduce, serve the frontend (see the Redis
+  lays them out side by side. There are five: `home`, `platform-detected`,
+  `audio`, `palettes` (the footer accent picker) and `complete`. Capture them
+  with a plain viewport `Page.captureScreenshot` (no `captureBeyondViewport`),
+  scrolling each state to frame its content, so every raster comes out exactly
+  2560x1720. To reproduce, serve the frontend (see the Redis
   note below), then drive `http://127.0.0.1:12000/` with CDP: `Page.navigate`,
   `Runtime.evaluate` to set the URL input and dispatch `input`/`change`, click
   `#submit`, and `Page.captureScreenshot`. The mode toggle's buttons are built by

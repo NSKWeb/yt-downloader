@@ -1,7 +1,7 @@
 # YT Downloader
 
 [![CI](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-140%20passing-brightgreen)](backend/tests)
+[![Tests](https://img.shields.io/badge/tests-146%20passing-brightgreen)](backend/tests)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](backend/requirements.txt)
 [![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
@@ -10,11 +10,17 @@ get the file.
 
 Supported platforms: **YouTube, Instagram, Facebook, Twitter/X, Pinterest, TikTok.**
 
+**Live preview:** <https://work-1-dpivlddieshksnav.prod-runtime.all-hands.dev/>
+— the frontend with the accent picker and dark/light toggle running against the
+live API. It is an ephemeral preview host, so treat it as a demo rather than a
+stable deployment; the screenshots below are captures of the same build.
+
 ![The downloader interface, ready for a URL](docs/img/screenshot-home.png)
 
 *The home page. The Video / Audio / Image tabs are rendered from the
 platform registry, so a platform that publishes no separate audio stream never
-shows an Audio tab it cannot honour.*
+shows an Audio tab it cannot honour. The light/dark toggle sits at the top right
+of the header.*
 
 ## Contents
 
@@ -52,7 +58,9 @@ See [PLAN.md](PLAN.md) for the full feature breakdown.
 
 ## Screenshots
 
-All four are real captures of the running stack, not mockups.
+All five are real captures of the running stack, not mockups. Each was taken
+against the preview build above at a 1280x860 viewport with the default Serenity
+palette.
 
 | Platform detected | Audio options |
 |---|---|
@@ -63,18 +71,22 @@ quality grid for that platform's own ladder — a short-form platform offers up 
 1080p, YouTube up to 4320p. Right: audio mode replaces the quality grid with a
 format selector and a bitrate selector (128–320 kbps, or best available).*
 
-![A finished job with the download link](docs/img/screenshot-complete.png)
+| Accent palettes | A finished job |
+|---|---|
+| ![The footer accent picker with five colour swatches](docs/img/screenshot-palettes.png) | ![A finished job with the download link](docs/img/screenshot-complete.png) |
 
-*Completion. The task ran as a queued job; the API returned a task id
-immediately and the UI watched it. At 100% the progress bar is replaced by a
-direct link to `/api/file/{task_id}`.*
+*Left: the footer's accent picker offers all five palettes as colour swatches,
+with the current one named beside them; the light/dark toggle sits at the top
+right of the header. Right: completion. The task ran as a queued job, the API
+returned a task id immediately and the UI watched it. At 100% the progress bar
+is replaced by a direct link to `/api/file/{task_id}`.*
 
 ## Colour and accessibility
 
 Two per-visitor preferences ship, both stored in `localStorage` and applied as
 attributes on `<html>` before first paint:
 
-- **Accent** — one of three brand palettes, chosen from a picker in the footer.
+- **Accent** — one of five brand palettes, chosen from a picker in the footer.
 - **Mode** — dark or light, chosen from a toggle at the top right of the header.
 
 There are no user accounts, so there is no server-side preference to keep. A
@@ -462,7 +474,7 @@ All settings come from environment variables. See
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest -q      # 140 tests
+python -m pytest -q      # 146 tests
 ruff check app tests     # lint
 ```
 
