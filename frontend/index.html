@@ -45,7 +45,7 @@
 <main class="container">
 
   <section class="hero">
-    <h1>Download from six platforms</h1>
+    <h1>Download from <span class="grad">six platforms</span></h1>
     <p>YouTube, Instagram, Facebook, Twitter, Pinterest and TikTok. Up to 8K video, or audio in seven formats.</p>
   </section>
 
@@ -67,19 +67,29 @@
     <div class="field">
       <label id="mode-label">Quality</label>
       <div class="quality-grid" id="options"></div>
+      <div class="empty-state" id="empty-state" hidden>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <p>Paste a link above to choose a quality.</p>
+      </div>
     </div>
 
     <div class="extras" id="extras"></div>
 
-    <button class="btn-primary" id="submit" type="button">Download</button>
+    <button class="btn-primary" id="submit" type="button">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      Download
+    </button>
 
     <div class="alert" id="alert"></div>
 
     <div class="progress-wrap" id="progress">
+      <div class="progress-head">
+        <span class="progress-status" id="progress-status">Preparing download…</span>
+        <span class="progress-pct" id="pct">0%</span>
+      </div>
       <div class="progress-title" id="progress-title"></div>
       <div class="bar"><div class="fill" id="fill"></div></div>
       <div class="progress-meta">
-        <span id="pct">0%</span>
         <span id="speed"></span>
         <span id="eta"></span>
       </div>

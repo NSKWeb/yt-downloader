@@ -100,6 +100,29 @@ favicon uses `--accent-solid`. Change them there; no page or script hardcodes a
 colour. Because the screenshots show the UI, changing the palette means
 recapturing them.
 
+### Design tokens
+
+The stylesheet is driven by a single token block. Values are not written inline
+anywhere else, so a rule can be changed without hunting for the elements it
+affects.
+
+| Group | Tokens | Purpose |
+|-------|--------|---------|
+| Type scale | `--fs-xs` … `--fs-3xl` | Eight steps. `--fs-3xl` uses `clamp()` so the hero scales fluidly. |
+| Space scale | `--sp-1` … `--sp-9` | Multiples of 4px, so vertical rhythm shares one grid. |
+| Elevation | `--shadow-1`, `--shadow-2` | Surfaces stack visually instead of reading as a flat wireframe. |
+| Radii | `--radius`, `--radius-sm`, `--radius-lg`, `--radius-pill` | |
+| Motion | `--ease`, `--dur` | One easing curve and duration for every transition. |
+
+Two scales matter most. Before them the stylesheet carried 19 distinct font
+sizes and 25 spacing values, several within a pixel of each other (`0.86`,
+`0.87`, `0.88`; `9px` used six times where `8px` was meant). Nobody can see a
+0.01rem difference in isolation, but the drift is what made the page look
+slightly unaligned. Both scales now come from the token block.
+
+Motion is a nicety, so it is opt-out rather than opt-in: everything collapses to
+instant under `prefers-reduced-motion: reduce`.
+
 ## Stack
 
 | Layer | Technology |

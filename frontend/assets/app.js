@@ -3,6 +3,12 @@
   "use strict";
 
   const API = "/api";
+  /* Mirrors the backend JobStatus enum (backend/app/models.py). */
+  const STATUS_LABELS = {
+    queued: "Queued",
+    downloading: "Downloading",
+    processing: "Processing",
+  };
   const AUDIO_FORMATS = ["mp3", "m4a", "wav", "flac", "opus", "aac", "ogg"];
   const AUDIO_QUALITIES = [
     { value: "128", label: "128 kbps" },
@@ -25,6 +31,26 @@
   let activeTask = null;
 
   const $ = (id) => document.getElementById(id);
+
+  /* Inline SVG so icons inherit currentColor and need no sprite or network. */
+  const ICONS = {
+    video: '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',
+    audio: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  };
+
+  function svg(name) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("class", "icon");
+    s.setAttribute("viewBox", "0 0 24 24");
+    s.setAttribute("aria-hidden", "true");
+    s.innerHTML = ICONS[name] || "";
+    return s;
+  }
 
   function el(tag, attrs, text) {
     const node = document.createElement(tag);
@@ -56,11 +82,14 @@
   function showAlert(kind, message) {
     const box = $("alert");
     box.className = "alert visible " + kind;
-    box.textContent = message;
+    box.innerHTML = "";
+    box.appendChild(svg(kind === "ok" ? "check" : "alert"));
+    box.appendChild(el("span", null, message));
   }
 
   function hideAlert() {
     $("alert").className = "alert";
+    $("alert").innerHTML = "";
   }
 
   function setPlatform(next) {
@@ -69,11 +98,14 @@
 
     const badge = $("platform-badge");
     if (next) {
-      badge.textContent = next.name;
+      badge.innerHTML = "";
+      badge.appendChild(svg("check"));
+      badge.appendChild(el("span", null, next.name));
       badge.className = "badge visible";
       document.body.dataset.platform = next.key;
     } else {
       badge.className = "badge";
+      badge.innerHTML = "";
       delete document.body.dataset.platform;
     }
 
@@ -116,7 +148,9 @@
     wrap.style.display = modes.length < 2 ? "none" : "";
 
     modes.forEach((pair) => {
-      const b = el("button", { type: "button" }, pair[1]);
+      const b = el("button", { type: "button" });
+      b.appendChild(svg(pair[0]));
+      b.appendChild(el("span", null, pair[1]));
       b.className = pair[0] === mode ? "active" : "";
       b.addEventListener("click", () => {
         mode = pair[0];
@@ -160,6 +194,13 @@
     const grid = $("options");
     grid.innerHTML = "";
     grid.style.display = "grid";
+
+    // Before a link is recognised there is nothing meaningful to choose.
+    const empty = $("empty-state");
+    const waiting = !platform && mode === "video";
+    if (empty) empty.hidden = !waiting;
+    grid.style.display = waiting ? "none" : "grid";
+    if (waiting) return;
 
     if (mode === "image") {
       $("mode-label").textContent = "Image";
@@ -245,12 +286,14 @@
   /* ---------- progress ---------- */
 
   function resetProgress() {
-    $("progress").classList.remove("visible");
+    const wrap = $("progress");
+    wrap.classList.remove("visible", "done", "failed");
     $("fill").style.width = "0%";
     $("pct").textContent = "0%";
     $("speed").textContent = "";
     $("eta").textContent = "";
     $("progress-title").textContent = "";
+    $("progress-status").textContent = "Preparing download…";
     const link = $("download-link");
     link.style.display = "none";
     link.removeAttribute("href");
@@ -272,29 +315,45 @@
   }
 
   function renderStatus(data) {
-    $("progress").classList.add("visible");
+    const wrap = $("progress");
+    wrap.classList.add("visible");
     const pct = Math.max(0, Math.min(100, data.progress || 0));
     $("fill").style.width = pct + "%";
     $("pct").textContent = pct.toFixed(1) + "%";
     $("speed").textContent = data.speed || "";
     $("eta").textContent = data.eta ? "ETA " + data.eta : "";
-    if (data.title) $("progress-title").textContent = data.title;
+    if (data.status === "queued" || data.status === "downloading" || data.status === "processing") {
+      $("progress-status").textContent = STATUS_LABELS[data.status];
+    }
+    if (data.title) {
+      const t = $("progress-title");
+      t.innerHTML = "";
+      t.appendChild(svg("video"));
+      t.appendChild(el("span", null, data.title));
+    }
 
     if (data.status === "complete") {
       stopWatching();
+      wrap.classList.remove("failed");
+      wrap.classList.add("done");
+      $("progress-status").textContent = "Complete";
       $("fill").style.width = "100%";
       $("pct").textContent = "100%";
       const link = $("download-link");
       link.href = API + "/file/" + data.task_id;
-      link.style.display = "inline-block";
-      link.textContent = "Download file";
-      showAlert("ok", "Ready.");
+      link.style.display = "inline-flex";
+      link.innerHTML = "";
+      link.appendChild(svg("download"));
+      link.appendChild(el("span", null, "Download file"));
       $("submit").disabled = false;
       return;
     }
 
     if (data.status === "failed") {
       stopWatching();
+      wrap.classList.remove("done");
+      wrap.classList.add("failed");
+      $("progress-status").textContent = "Failed";
       showAlert("error", data.error || "Download failed.");
       $("submit").disabled = false;
     }
@@ -428,7 +487,8 @@
       }
 
       const data = await res.json();
-      showAlert("ok", "Queued. Working on it\u2026");
+      /* The progress panel reports its own state, so no alert is needed here. */
+      $("progress-status").textContent = "Queued";
       $("progress").classList.add("visible");
       stopWatching();
       watch(data.task_id);
@@ -451,7 +511,9 @@
     strip.innerHTML = "";
     Object.keys(PLATFORMS).forEach((key) => {
       const p = PLATFORMS[key];
-      const chip = el("button", { type: "button", class: "chip" }, p.name);
+      const chip = el("button", { type: "button", class: "chip" });
+      chip.appendChild(svg("link"));
+      chip.appendChild(el("span", null, p.name));
       chip.addEventListener("click", () => {
         $("url").value = "https://" + p.hosts[0] + "/";
         $("url").focus();
