@@ -235,29 +235,39 @@ been.
   ```
 
   The `ghu_` app token itself has no write permission on any repo; a 403 from it
-  is expected and does not mean the repo or the push URL is wrong. In this
-  sandbox that is the *only* token available — `GH_TOKEN` is also present but
-  reports as invalid (`gh auth status` fails on it) and there is no
-  `~/.git-credentials`, `~/.netrc` or `gh` hosts file — so a push cannot be
-  completed from here at all, by any of the URL/askpass routes above. Note the
-  token's `permissions` block from `GET /api/repos/{owner}/{repo}` reports
-  `"push": true`, which is misleading: that reflects the app's declared access,
-  not what the installation actually grants. Commit locally and hand the push to
-  the user rather than retrying variations.
+  is expected and does not mean the repo or the push URL is wrong. The
+  registered `GITHUB_TOKEN` in this sandbox is exactly that read-only app token,
+  so a push with it fails with `403 ... denied to NSKWeb` even though
+  `GET /api/repos/{owner}/{repo}` reports `"push": true` — that reflects the
+  app's declared access, not what the installation grants. A user-supplied
+  classic token with `repo` scope does work. Also watch for a stale
+  `GIT_ASKPASS` pointing at a deleted scratch script (it fails with
+  `cannot exec`); unset it. A working incantation:
+
+  ```bash
+  env -u GIT_ASKPASS git -c credential.helper='!f(){ printf
+    "username=x-access-token\npassword=%s\n" "$TOKEN"; }; f' push origin main
+  ```
+
+  Pass the token through the environment, not argv or `.git/config`, so it is
+  never written to disk.
 - Python 3.13 locally, 3.12 in the Docker image
-- FFmpeg and aria2c are installed. **`redis-server` is not**, contrary to what
-  this file used to claim, and `dockerd` needs root so the compose stack cannot
-  be brought up either. Redis-dependent tests still run, because
-  `tests/test_api.py` injects an in-memory stub instead of opening a real pool.
-  For screenshots, the same trick serves the real API: mount
-  `frontend/` with `StaticFiles` and replace `app.state.redis` with that stub
-  *before* `uvicorn.run`, and swap `app.router.lifespan_context` for a no-op so
-  the ARQ pool is never opened. An `enqueue_job` stub that writes a terminal
-  `JobState` is enough to photograph the completed-progress state through the
-  genuine `/ws/progress` route. Never add a Redis dependency to the app to work
-  around a sandbox gap.
-- Datacenter IPs get refused by YouTube ("Sign in to confirm you're not a bot").
-  This is expected and is not a bug in this code.
+- `aria2c` and `redis-server` are **not** on `PATH` by default, but both are
+  reachable: `sudo apt-get install -y aria2` works (passwordless sudo is
+  available), and a vendored `backend/redis-server` runs on port 6379. FFmpeg is
+  absent; `yt-dlp` is present as a Python package. Start Redis with
+  `backend/redis-server --daemonize yes`, then run the real worker:
+  `cd backend && REDIS_HOST=127.0.0.1 DOWNLOAD_DIR=/tmp/dl arq
+  app.workers.tasks.WorkerSettings` (`arq` lives in `~/.local/bin`). The app
+  defaults `DOWNLOAD_DIR` to `/downloads`, which is not writable here, so always
+  override it or the worker fails with `PermissionError`.
+  Because the worker is real, screenshots can be captured against the genuine
+  stack — including a true completion state that hands back a real
+  `/api/file/{task_id}` link — instead of stubbing Redis. Do not add a Redis
+  dependency to the app to work around a sandbox gap.
+- YouTube downloads **do** work from this sandbox: a real 4K job completed end
+  to end (240 MB), so do not assume a bot-check refusal before trying. If a
+  refusal does appear it is YouTube's doing, not a bug in this code.
 - In this sandbox, the Docker network cannot complete a TLS handshake to some
   platform CDN hosts (`v19-webapp-prime.us.tiktok.com`, `video.twimg.com`), while
   the host machine reaches them fine. A download that fails only inside the
