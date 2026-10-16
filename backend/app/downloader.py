@@ -64,6 +64,27 @@ _PROGRESS_RE = re.compile(
 _ARIA2_PROGRESS_RE = re.compile(r"\[#[0-9a-f]+\s")
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
+# yt-dlp skips a video that fails --match-filter and still exits 0, printing
+# "<title> does not pass filter (<filter>), skipping ..". Nothing is written to
+# disk, so the caller must treat this as a failure rather than fall through to
+# the "no file produced" path, which would report a less useful error.
+_FILTERED_RE = re.compile(r"does not pass filter \(")
+
+
+class DurationLimitExceeded(RuntimeError):
+    """The video is longer than MAX_DURATION_SECONDS allows."""
+
+
+def duration_filter(max_seconds: int) -> str:
+    """yt-dlp --match-filter expression that rejects over-long videos.
+
+    The `<?` operator is optional-match: when a video reports no duration the
+    filter passes rather than rejecting it. Live streams and some extractors
+    omit the field, and blocking those outright would be a regression — the
+    duration cap is a resource guard, not a correctness rule.
+    """
+    return f"duration<?{max_seconds}"
+
 
 def _meaningful_error(lines: list[str]) -> str:
     """Pick the lines that explain a failure, ignoring transfer chatter."""
@@ -156,6 +177,12 @@ def build_command(
         cmd.append("--yes-playlist")
     else:
         cmd.append("--no-playlist")
+
+    # Refuse over-long videos before any bytes are transferred. Without this the
+    # only bound on a job was the wall-clock timeout, so a multi-hour livestream
+    # would saturate the worker and the disk. `<?` keeps videos with no reported
+    # duration (live streams, some extractors) working.
+    cmd += ["--match-filter", duration_filter(settings.max_duration_seconds)]
 
     if subtitles:
         cmd += [
@@ -314,6 +341,14 @@ async def run_download(
     returncode = await proc.wait()
     if returncode != 0:
         raise RuntimeError("yt-dlp failed: " + _meaningful_error(tail))
+
+    # A video rejected by --match-filter exits 0 and writes nothing. Surface the
+    # duration limit as such instead of letting the generic "produced no file"
+    # fallback below report it.
+    if any(_FILTERED_RE.search(line) for line in tail):
+        raise DurationLimitExceeded(
+            f"video is longer than the {settings.max_duration_seconds}s limit"
+        )
 
     if final_path and Path(final_path).exists():
         return Path(final_path)

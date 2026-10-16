@@ -257,6 +257,18 @@ async def get_info(url: str) -> InfoResponse:
     data = await probe_info(url)
     if not data:
         raise HTTPException(status_code=422, detail="Could not read metadata for that URL")
+    duration = data.get("duration")
+    # Reject here so the UI can explain the limit up front instead of queueing a
+    # job that the worker will discard. A missing duration passes, matching the
+    # optional-match filter the download itself uses.
+    if isinstance(duration, (int, float)) and duration > settings.max_duration_seconds:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Video is {int(duration)}s long; the limit is "
+                f"{settings.max_duration_seconds}s"
+            ),
+        )
     heights = sorted(
         {
             f["height"]

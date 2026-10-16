@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.config import settings
 from app.downloader import _parse_progress_line, build_command, build_format_selector
 
 
@@ -50,6 +51,22 @@ class TestCommandBuilder:
         assert "player_client" not in joined
         assert "--cookies" not in joined
         assert "--proxy" not in joined
+
+    def test_duration_cap_is_enforced(self):
+        """MAX_DURATION_SECONDS was a dead setting; the command must carry it."""
+        from app.downloader import duration_filter
+
+        cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
+        assert "--match-filter" in cmd
+        assert cmd[cmd.index("--match-filter") + 1] == duration_filter(
+            settings.max_duration_seconds
+        )
+
+    def test_duration_filter_uses_optional_match(self):
+        """`<?` not `<`: a video with no reported duration must still download."""
+        from app.downloader import duration_filter
+
+        assert duration_filter(3600) == "duration<?3600"
 
 
 class TestProgressParsing:
@@ -312,3 +329,63 @@ class TestProbeConcurrencyBound:
         assert await asyncio.wait_for(downloader.probe_info("second"), timeout=2) == {
             "title": "ok"
         }
+
+
+class TestFilteredDownloadIsAFailure:
+    """yt-dlp exits 0 when --match-filter rejects a video and writes nothing.
+
+    Treating that as success would fall through to the "newest media file"
+    fallback and could hand back a file from an earlier job.
+    """
+
+    class _FakeProc:
+        def __init__(self, lines):
+            self._lines = lines
+            self.returncode = 0
+
+        @property
+        def stdout(self):
+            async def gen():
+                for line in self._lines:
+                    yield line.encode()
+
+            return gen()
+
+        async def wait(self):
+            return self.returncode
+
+    @pytest.mark.asyncio
+    async def test_filtered_run_raises_duration_error(self, tmp_path, monkeypatch):
+        from app import downloader
+
+        lines = [
+            "[download] Some Long Video does not pass filter (duration<?14400), skipping ..",
+        ]
+
+        async def fake_exec(*cmd, **kwargs):
+            return self._FakeProc(lines)
+
+        monkeypatch.setattr(downloader.asyncio, "create_subprocess_exec", fake_exec)
+        # A stale media file must not be mistaken for this job's output.
+        (tmp_path / "stale.mp4").write_bytes(b"old")
+
+        with pytest.raises(downloader.DurationLimitExceeded):
+            await downloader.run_download(
+                "https://youtu.be/x", "video", "best", "mp3", tmp_path
+            )
+
+    @pytest.mark.asyncio
+    async def test_successful_run_still_returns_the_file(self, tmp_path, monkeypatch):
+        from app import downloader
+
+        out = tmp_path / "clip.mp4"
+
+        async def fake_exec(*cmd, **kwargs):
+            out.write_bytes(b"data")
+            return self._FakeProc([str(out)])
+
+        monkeypatch.setattr(downloader.asyncio, "create_subprocess_exec", fake_exec)
+
+        assert await downloader.run_download(
+            "https://youtu.be/x", "video", "best", "mp3", tmp_path
+        ) == out

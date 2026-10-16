@@ -435,6 +435,46 @@ class TestHistoryEndpoints:
         assert r.json()["title"] == "Fine"
 
 
+
+class TestInfoRejectsOverLongVideos:
+    """The duration cap must be visible before a job is queued."""
+
+    def test_over_long_video_is_rejected(self, client, monkeypatch):
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Marathon stream", "duration": settings.max_duration_seconds + 60}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://www.youtube.com/watch?v=abc")
+
+        assert r.status_code == 422
+        assert "limit" in r.json()["detail"]
+
+    def test_video_at_the_limit_is_allowed(self, client, monkeypatch):
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Exactly the cap", "duration": settings.max_duration_seconds}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://www.youtube.com/watch?v=abc")
+
+        assert r.status_code == 200
+
+    def test_missing_duration_is_allowed(self, client, monkeypatch):
+        """Live streams report no duration; blocking them would be a regression."""
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Live", "duration": None}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://www.youtube.com/watch?v=abc")
+
+        assert r.status_code == 200
+
+
 class TestInfoIsRateLimited:
     """A metadata probe forks a yt-dlp process, so it needs the same limiter."""
 

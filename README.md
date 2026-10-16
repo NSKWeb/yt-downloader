@@ -390,6 +390,21 @@ curl -X POST http://localhost:12000/api/download \
 
 `HTTP 422`. Nothing is queued, and no request is ever made to that host.
 
+A video longer than `MAX_DURATION_SECONDS` is refused the same way, before any
+job exists and before any bytes are transferred:
+
+```bash
+curl "http://localhost:12000/api/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+```
+
+```json
+{ "detail": "Video is 213s long; the limit is 60s" }
+```
+
+`/api/download` enforces the same cap through yt-dlp's `--match-filter`, so a
+direct call that skips `/api/info` is still bounded. Live streams and videos
+that report no duration are exempt.
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -461,11 +476,14 @@ All settings come from environment variables. See
 | `ARIA2C_CONNECT_TIMEOUT` | `60` | aria2c connect timeout, seconds |
 | `ARIA2C_TIMEOUT` | `60` | aria2c per-read timeout, seconds |
 | `MAX_CONCURRENT_JOBS` | `2` | Worker concurrency |
+| `MAX_DURATION_SECONDS` | `14400` | Reject videos longer than this |
 | `RATE_LIMIT_PER_MINUTE` | `10` | Requests allowed per IP per minute |
 | `RATE_LIMIT_PER_HOUR` | `100` | Requests allowed per IP per hour |
 | `RATE_LIMIT_ENABLED` | `true` | Turn the limiter off entirely |
 | `DATABASE_PATH` | `<DOWNLOAD_DIR>/history.db` | SQLite history location |
 | `HISTORY_ENABLED` | `true` | Record job history |
+| `HISTORY_RETENTION_DAYS` | `30` | Drop history rows older than this |
+| `HISTORY_MAX_ROWS` | `5000` | Hard cap on history rows |
 | `WS_POLL_INTERVAL` | `0.5` | Seconds between progress reads |
 | `CORS_ORIGINS` | `*` | Allowed frontend origins |
 

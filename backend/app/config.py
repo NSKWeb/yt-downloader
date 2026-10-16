@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # downloads so that overriding download_dir does not silently break history.
     history_enabled: bool = True
     database_path: Path | None = None
+    # Retention for the history table, applied by the hourly cleanup job. Rows
+    # older than the age cap, or beyond the row cap, are deleted. Without this
+    # the table grows without bound: every finished job appends a row and
+    # nothing ever removes one.
+    history_retention_days: int = 30
+    history_max_rows: int = 5000
 
     # WebSocket progress streaming
     ws_poll_interval: float = 0.5
