@@ -177,7 +177,15 @@ been.
   ```
 
   The `ghu_` app token itself has no write permission on any repo; a 403 from it
-  is expected and does not mean the repo or the push URL is wrong.
+  is expected and does not mean the repo or the push URL is wrong. In this
+  sandbox that is the *only* token available — `GH_TOKEN` is also present but
+  reports as invalid (`gh auth status` fails on it) and there is no
+  `~/.git-credentials`, `~/.netrc` or `gh` hosts file — so a push cannot be
+  completed from here at all, by any of the URL/askpass routes above. Note the
+  token's `permissions` block from `GET /api/repos/{owner}/{repo}` reports
+  `"push": true`, which is misleading: that reflects the app's declared access,
+  not what the installation actually grants. Commit locally and hand the push to
+  the user rather than retrying variations.
 - Python 3.13 locally, 3.12 in the Docker image
 - FFmpeg and aria2c are installed. **`redis-server` is not**, contrary to what
   this file used to claim, and `dockerd` needs root so the compose stack cannot
