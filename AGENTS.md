@@ -113,9 +113,10 @@ docker compose config --quiet   # validate before pushing
   `--accent-ink`, **never** `#fff` (white on any of them is about 2:1). All
   three palettes clear WCAG AA on every role; the ratios are recorded in
   `backend/app/themes.py` and asserted by `tests/test_themes.py`, which also
-  recomputes them from the hex values and checks the `[data-theme]` blocks in
-  `style.css` match `GET /api/themes`. That test is the guard: editing a colour
-  in one place without the other fails CI.
+  recomputes them from the hex values and checks the `:root` fallback, each
+  `[data-theme]` block and every `--accent-rgb` triple in `style.css` against
+  `GET /api/themes`. That test is the guard: editing a colour in one place
+  without the other fails CI.
 
   History, so it is not retried: bright red (`#ff0033`) vibrates on the dark
   background, reads as "error" on a primary action, and measured only 3.96:1
