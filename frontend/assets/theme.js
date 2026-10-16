@@ -29,7 +29,9 @@
   /* hex is the swatch shown in the picker; key matches a CSS block. */
   var PALETTES = [
     { key: "serenity", hex: "#92A8D1", name: "Serenity",      source: "Pantone 15-3919" },
-    { key: "illuminating", hex: "#F5DF4D", name: "Illuminating",  source: "Pantone 13-0647" },
+    { key: "turquoise",      hex: "#45B5AA", name: "Turquoise",      source: "Pantone 15-5519" },
+    { key: "aqua-sky",       hex: "#7BC4C4", name: "Aqua Sky",       source: "Pantone 14-4811" },
+    { key: "blue-turquoise", hex: "#53B0AE", name: "Blue Turquoise", source: "Pantone 15-5217" },
     { key: "tiffany",  hex: "#81D8D0", name: "Tiffany Blue",  source: "Tiffany & Co." }
   ];
 
@@ -126,7 +128,7 @@
 
   /* ---------------------------------------------------------------------
      Footer accent picker. One radio per palette, rendered as a bare colour
-     swatch in a segmented pill, so the three colours are visible at a glance
+     swatch in a segmented pill, so the colours are visible at a glance
      and choosing one needs no reading. The palette name is still announced
      (aria-label) and shown beside the pill (.mood-current), because a swatch
      alone is not perceivable by everyone.

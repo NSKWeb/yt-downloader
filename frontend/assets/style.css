@@ -126,12 +126,28 @@ html[data-theme="serenity"] {
   --accent-rgb: 146, 168, 209;
 }
 
-html[data-theme="illuminating"] {
-  --accent: #F5DF4D;        /* Pantone 13-0647 · 2021  14.01:1 */
-  --accent-solid: #F5DF4D;
-  --accent-ink: #333004;    /* 9.93:1 on the fill              */
-  --accent-hover: #f8e77c;  /* 10.68:1 with the ink            */
-  --accent-rgb: 245, 223, 77;
+html[data-theme="turquoise"] {
+  --accent: #45B5AA;        /* Pantone 15-5519 · 2010   7.61:1 */
+  --accent-solid: #45B5AA;
+  --accent-ink: #08201e;    /* 6.83:1 on the fill              */
+  --accent-hover: #63c6bd;  /* 8.37:1 with the ink             */
+  --accent-rgb: 69, 181, 170;
+}
+
+html[data-theme="aqua-sky"] {
+  --accent: #7BC4C4;        /* Pantone 14-4811 · 2003   9.49:1 */
+  --accent-solid: #7BC4C4;
+  --accent-ink: #07211f;    /* 8.45:1 on the fill              */
+  --accent-hover: #9ad2d2;  /* 10.05:1 with the ink            */
+  --accent-rgb: 123, 196, 196;
+}
+
+html[data-theme="blue-turquoise"] {
+  --accent: #53B0AE;        /* Pantone 15-5217 · 2005   7.38:1 */
+  --accent-solid: #53B0AE;
+  --accent-ink: #072120;    /* 6.56:1 on the fill              */
+  --accent-hover: #74c2c0;  /* 8.19:1 with the ink             */
+  --accent-rgb: 83, 176, 174;
 }
 
 html[data-theme="tiffany"] {
@@ -203,9 +219,19 @@ html[data-mode="light"][data-theme="serenity"] {
   --accent-rgb: 96, 111, 138;
   --ring: 0 0 0 3px var(--accent);
 }
-html[data-mode="light"][data-theme="illuminating"] {
-  --accent: #6f620a;        /* 5.76:1 on --bg */
-  --accent-rgb: 111, 98, 10;
+html[data-mode="light"][data-theme="turquoise"] {
+  --accent: #2e7d75;        /* 4.58:1 on --bg */
+  --accent-rgb: 46, 125, 117;
+  --ring: 0 0 0 3px var(--accent);
+}
+html[data-mode="light"][data-theme="aqua-sky"] {
+  --accent: #377878;        /* 4.79:1 on --bg */
+  --accent-rgb: 55, 120, 120;
+  --ring: 0 0 0 3px var(--accent);
+}
+html[data-mode="light"][data-theme="blue-turquoise"] {
+  --accent: #337a78;        /* 4.70:1 on --bg */
+  --accent-rgb: 51, 122, 120;
   --ring: 0 0 0 3px var(--accent);
 }
 html[data-mode="light"][data-theme="tiffany"] {

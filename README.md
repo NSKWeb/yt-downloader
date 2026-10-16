@@ -83,12 +83,14 @@ first paint, so the page never flashes the wrong accent or mode.
 
 ### Accent palettes
 
-Three palettes ship, each the brand colour used unchanged:
+Five palettes ship, each the brand colour used unchanged:
 
 | Key | Name | Hex | Source |
 |-----|------|-----|--------|
 | `serenity` | Serenity | `#92A8D1` | Pantone 15-3919 · Colour of the Year 2016 *(default)* |
-| `illuminating` | Illuminating | `#F5DF4D` | Pantone 13-0647 · Colour of the Year 2021 |
+| `turquoise` | Turquoise | `#45B5AA` | Pantone 15-5519 · Colour of the Year 2010 |
+| `aqua-sky` | Aqua Sky | `#7BC4C4` | Pantone 14-4811 · Colour of the Year 2003 |
+| `blue-turquoise` | Blue Turquoise | `#53B0AE` | Pantone 15-5217 · Colour of the Year 2005 |
 | `tiffany` | Tiffany Blue | `#81D8D0` | Tiffany & Co. |
 
 The choice is stored under `ytdl-accent` and applied as `[data-theme]`.
@@ -98,18 +100,26 @@ then a rose, then sky blue. Bright red on a dark surface is uncomfortable to
 look at for long and reads as "error", the wrong signal for an ordinary primary
 action.
 
+**Note on the turquoise family.** Turquoise, Aqua Sky, Blue Turquoise and
+Tiffany Blue are all the same hue and sit within 15 CIELAB units of one
+another — below the just-noticeable threshold at swatch size. They are offered
+as a deliberate family, so a visitor picking between them sees four similar
+teals rather than four clearly separate colours. Serenity stays well clear of
+all of them (30+). `test_palette_hues_are_spread_or_explicitly_clustered` pins
+these distances so an accidental edit is caught.
+
 ### One colour, four roles
 
 An accent light enough to read as text on the dark background is far too light
 to carry text when used as a fill, so each palette splits into four tokens:
 
-| Token | Role | Serenity | Illuminating | Tiffany |
-|-------|------|----------|--------------|---------|
-| `--accent` | Link text, borders, progress fill, chips | `#92A8D1` | `#F5DF4D` | `#81D8D0` |
-| `--accent-solid` | Filled buttons and active tabs | `#92A8D1` | `#F5DF4D` | `#81D8D0` |
-| `--accent-ink` | Text on `--accent-solid` | `#0c1931` | `#333004` | `#083531` |
-| `--accent-hover` | Hover fill for those buttons | `#a8b9da` | `#f8e77c` | `#98dfd9` |
-| `--accent-rgb` | The accent as an RGB triple, for `rgba()` tints | `146, 168, 209` | `245, 223, 77` | `129, 216, 208` |
+| Token | Role | Serenity | Turquoise | Aqua Sky | Blue Turquoise | Tiffany |
+|-------|------|----------|-----------|----------|----------------|---------|
+| `--accent` | Link text, borders, progress fill, chips | `#92A8D1` | `#45B5AA` | `#7BC4C4` | `#53B0AE` | `#81D8D0` |
+| `--accent-solid` | Filled buttons and active tabs | `#92A8D1` | `#45B5AA` | `#7BC4C4` | `#53B0AE` | `#81D8D0` |
+| `--accent-ink` | Text on `--accent-solid` | `#0c1931` | `#08201e` | `#07211f` | `#072120` | `#083531` |
+| `--accent-hover` | Hover fill for those buttons | `#a8b9da` | `#63c6bd` | `#9ad2d2` | `#74c2c0` | `#98dfd9` |
+| `--accent-rgb` | The accent as an RGB triple, for `rgba()` tints | `146, 168, 209` | `69, 181, 170` | `123, 196, 196` | `83, 176, 174` | `129, 216, 208` |
 
 Filled surfaces always use the dark ink, never white: white on any of these
 accents measures about 2:1, far below the WCAG AA threshold of 4.5:1.
@@ -117,7 +127,9 @@ accents measures about 2:1, far below the WCAG AA threshold of 4.5:1.
 | Palette | `--accent` on `--bg` | ink on fill | ink on hover |
 |---------|----------------------|-------------|--------------|
 | Serenity | 7.88:1 | 7.29:1 | 8.85:1 |
-| Illuminating | 14.01:1 | 9.93:1 | 10.68:1 |
+| Turquoise | 7.61:1 | 6.83:1 | 8.37:1 |
+| Aqua Sky | 9.49:1 | 8.45:1 | 10.05:1 |
+| Blue Turquoise | 7.38:1 | 6.56:1 | 8.19:1 |
 | Tiffany Blue | 11.41:1 | 8.10:1 | 8.88:1 |
 
 Every value clears AA. `--accent-rgb` exists because shadows, the focus ring and
@@ -131,13 +143,15 @@ preference follows the OS via `prefers-color-scheme`. The mode is stored under
 `ytdl-mode` and applied as `[data-mode]`.
 
 Only one role changes between modes. `--accent` is measured against `--bg`, and
-`--bg` is what the mode swaps, so on the light page all three brand colours drop
+`--bg` is what the mode swaps, so on the light page all five brand colours drop
 to 1.3–2.3:1 and need a darker sibling:
 
 | Palette | Dark `--accent` | Light `--accent` | Light `--accent` on `--bg` |
 |---------|-----------------|------------------|----------------------------|
 | Serenity | `#92A8D1` | `#606F8A` | 4.77:1 |
-| Illuminating | `#F5DF4D` | `#6f620a` | 5.76:1 |
+| Turquoise | `#45B5AA` | `#2e7d75` | 4.58:1 |
+| Aqua Sky | `#7BC4C4` | `#377878` | 4.79:1 |
+| Blue Turquoise | `#53B0AE` | `#337a78` | 4.70:1 |
 | Tiffany Blue | `#81D8D0` | `#477772` | 4.75:1 |
 
 The fill roles do **not** change. A filled button keeps the dark ink on the

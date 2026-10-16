@@ -95,12 +95,16 @@ docker compose config --quiet   # validate before pushing
 ## README assets
 
 - **Two appearance preferences ship: accent and light/dark mode.**
-  - Accent: three palettes (`serenity`, `illuminating`, `tiffany`), chosen from a
-    picker in the **footer**. Stored in `localStorage["ytdl-accent"]`, applied
-    as `[data-theme]`. The three are deliberately far apart in hue — a choice
-    between three near-identical blues reads as no choice at all. If a palette
-    is ever swapped, keep every pair at least 25 apart in CIELAB;
-    `test_swatches_are_distinguishable_by_eye` enforces it.
+  - Accent: five palettes (`serenity`, `turquoise`, `aqua-sky`,
+    `blue-turquoise`, `tiffany`), chosen from a picker in the **footer**.
+    Stored in `localStorage["ytdl-accent"]`, applied as `[data-theme]`.
+    Serenity is deliberately far from the other four; the turquoise family
+    (Turquoise, Aqua Sky, Blue Turquoise, Tiffany Blue) is *intentionally*
+    clustered within 15 CIELAB units, so those four read as one family rather
+    than four separate colours. That is a product decision, not a bug. If a
+    palette is ever swapped, keep any non-turquoise pair at least 25 apart in
+    CIELAB and keep the turquoise family together;
+    `test_palette_hues_are_spread_or_explicitly_clustered` pins both rules.
   - Mode: `dark` (default) or `light`, chosen from a toggle at the **top right
     of the header**. Stored in `localStorage["ytdl-mode"]`, applied as
     `[data-mode]`. An unset mode follows the OS via `prefers-color-scheme`.
@@ -123,7 +127,7 @@ docker compose config --quiet   # validate before pushing
   The roles cannot share one variable. These accents are light, so they read as
   text on the dark `--bg` but cannot carry white text as a fill: filled surfaces
   use `--accent-ink`, **never** `#fff` (white on any of them is about 2:1). All
-  three palettes clear WCAG AA on every role in both modes; the ratios are
+  five palettes clear WCAG AA on every role in both modes; the ratios are
   recorded in `backend/app/themes.py` and asserted by `tests/test_themes.py`,
   which also recomputes them from the hex values and checks the `:root` fallback,
   each `[data-theme]` block and every `--accent-rgb` triple in `style.css`

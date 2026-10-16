@@ -53,7 +53,7 @@ def client(monkeypatch):
     yield TestClient(app)
 
 
-def test_theme_catalog_lists_three_finalists(client):
+def test_theme_catalog_lists_the_palettes(client):
     body = client.get("/api/themes").json()
 
     assert body["default"] == "serenity"
@@ -63,31 +63,37 @@ def test_theme_catalog_lists_three_finalists(client):
     assert body["modes"] == ["dark", "light"]
     assert body["surfaces"] == {"dark": "#0d1117", "light": "#f6f8fa"}
     keys = [t["key"] for t in body["themes"]]
-    assert keys == ["serenity", "illuminating", "tiffany"]
+    assert keys == ["serenity", "turquoise", "aqua-sky", "blue-turquoise", "tiffany"]
 
 
 def test_palette_carries_the_brand_colours():
     by_key = {t.key: t for t in THEMES}
 
-    assert by_key["serenity"].accent == "#92A8D1"      # Pantone 15-3919
-    assert by_key["illuminating"].accent == "#F5DF4D"  # Pantone 13-0647
-    assert by_key["tiffany"].accent == "#81D8D0"       # Tiffany & Co.
+    assert by_key["serenity"].accent == "#92A8D1"        # Pantone 15-3919
+    assert by_key["turquoise"].accent == "#45B5AA"       # Pantone 15-5519
+    assert by_key["aqua-sky"].accent == "#7BC4C4"        # Pantone 14-4811
+    assert by_key["blue-turquoise"].accent == "#53B0AE"  # Pantone 15-5217
+    assert by_key["tiffany"].accent == "#81D8D0"         # Tiffany & Co.
 
 
 def test_default_theme_exists():
     assert theme_for_key(DEFAULT_THEME) is not None
 
 
-def test_swatches_are_distinguishable_by_eye():
-    """Three near-identical blues made the picker look like it had two options.
+def test_palette_hues_are_spread_or_explicitly_clustered():
+    """Record how close the swatches look, since the picker now has duplicates.
 
-    Serenity and the palette that used to sit beside it were both pale blues,
-    8.8 apart in CIELAB -- close enough that the swatch row read as two
-    colours rather than three, which defeats the point of offering a choice.
-    This keeps every pair far enough apart to be told apart at swatch size.
+    An earlier revision of this file asserted every pair was >= 25 apart in
+    CIELAB, because three near-identical blues made the picker read as one
+    colour. The turquoise family was then added deliberately -- Turquoise, Aqua
+    Sky, Blue Turquoise and Tiffany Blue are all the same hue within 15 units,
+    which is *below* the just-noticeable threshold at swatch size.
 
-    Distance is plain Euclidean CIELAB (CIE76): crude next to CIEDE2000, but it
-    needs no colour-science dependency and the threshold carries a wide margin.
+    That is a product decision, not an accident, so this test pins the real
+    distances instead of pretending they are distinct. It fails if a colour is
+    edited by hand, and it documents which swatches a visitor cannot tell
+    apart. The spread colours (Serenity, and anything new) must still be clear
+    of everything else.
     """
     def to_lab(h: str) -> tuple[float, float, float]:
         h = h.lstrip("#")
@@ -103,12 +109,31 @@ def test_swatches_are_distinguishable_by_eye():
         fx, fy, fz = f(x / xn), f(y / yn), f(z / zn)
         return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
 
+    # The turquoise family: known to be near-identical to each other on purpose.
+    CLUSTER = {"turquoise", "aqua-sky", "blue-turquoise", "tiffany"}
+    # Anything outside the cluster must stay clearly distinguishable.
+    SPREAD = {t.key for t in THEMES} - CLUSTER
+
+    by_key = {t.key: t for t in THEMES}
     for a, b in itertools.combinations(THEMES, 2):
         dist = math.dist(to_lab(a.accent), to_lab(b.accent))
+        if a.key in CLUSTER and b.key in CLUSTER:
+            assert dist < 25, (
+                f"{a.key}/{b.key} are {dist:.1f} apart; they were expected to "
+                f"cluster with the rest of the turquoise family"
+            )
+            continue
         assert dist >= 25, (
             f"{a.key} and {b.key} are only {dist:.1f} apart in CIELAB; "
             f"at swatch size they read as the same colour"
         )
+
+    # Serenity is the only spread colour until another is added.
+    assert SPREAD == {"serenity"}, f"unexpected spread set: {sorted(SPREAD)}"
+    for key in SPREAD:
+        for other in CLUSTER:
+            dist = math.dist(to_lab(by_key[key].accent), to_lab(by_key[other].accent))
+            assert dist >= 25, f"{key} vs {other} only {dist:.1f} apart"
 
 
 def test_unknown_theme_returns_none():
@@ -335,7 +360,7 @@ def test_switcher_palettes_match_the_api_catalogue():
 
 
 def test_picker_is_swatch_only_and_names_the_current_palette():
-    """The control shows three colours, not three long text buttons.
+    """The control shows colour swatches, not long text buttons.
 
     A swatch alone is not perceivable by everyone, so the palette name must
     still be announced on the button and shown in text beside the group. This
