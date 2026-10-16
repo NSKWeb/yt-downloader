@@ -1,5 +1,7 @@
 """Tests for the SQLite history store."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app import history
@@ -124,3 +126,79 @@ def test_history_db_path_follows_download_dir(tmp_path, monkeypatch):
     explicit = tmp_path / "custom.db"
     monkeypatch.setattr(settings, "database_path", explicit)
     assert settings.history_db_path == explicit
+
+
+class TestPruneHistory:
+    """The table had no retention: every finished job appended a row forever."""
+
+    async def _seed(self, count, *, age_days=0.0, prefix="t"):
+        """Insert `count` rows, optionally backdated by `age_days`."""
+        import sqlite3
+
+        await history.init_db()
+        base = datetime.now(timezone.utc) - timedelta(days=age_days)
+        conn = sqlite3.connect(settings.history_db_path)
+        try:
+            for i in range(count):
+                ts = (base + timedelta(seconds=i)).isoformat()
+                conn.execute(
+                    "INSERT OR REPLACE INTO downloads (task_id, url, platform, mode,"
+                    " status, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                    (f"{prefix}{i}", "https://youtu.be/x", "youtube", "video", "complete", ts, ts),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @pytest.mark.asyncio
+    async def test_removes_rows_past_the_age_cap(self, temp_db, monkeypatch):
+        monkeypatch.setattr(settings, "history_retention_days", 7)
+        monkeypatch.setattr(settings, "history_max_rows", 0)
+        await self._seed(3, age_days=30, prefix="old")
+        await self._seed(2, age_days=0, prefix="new")
+
+        removed = await history.prune_history()
+
+        assert removed == 3
+        entries = await history.list_recent()
+        assert {e["task_id"] for e in entries} == {"new0", "new1"}
+
+    @pytest.mark.asyncio
+    async def test_row_cap_keeps_the_newest(self, temp_db, monkeypatch):
+        monkeypatch.setattr(settings, "history_retention_days", 0)
+        monkeypatch.setattr(settings, "history_max_rows", 5)
+        await self._seed(12)
+
+        removed = await history.prune_history()
+
+        assert removed == 7
+        entries = await history.list_recent(limit=100)
+        assert len(entries) == 5
+        # Newest-first ordering means t11..t7 survive.
+        assert {e["task_id"] for e in entries} == {f"t{i}" for i in range(7, 12)}
+
+    @pytest.mark.asyncio
+    async def test_vacuum_reclaims_file_space(self, temp_db, monkeypatch):
+        """DELETE alone leaves the pages in the file, so the size must drop."""
+        monkeypatch.setattr(settings, "history_retention_days", 7)
+        monkeypatch.setattr(settings, "history_max_rows", 0)
+        await self._seed(400, age_days=30)
+        size_before = settings.history_db_path.stat().st_size
+
+        await history.prune_history()
+
+        assert settings.history_db_path.stat().st_size < size_before
+
+    @pytest.mark.asyncio
+    async def test_noop_when_nothing_to_remove(self, temp_db, monkeypatch):
+        monkeypatch.setattr(settings, "history_retention_days", 30)
+        monkeypatch.setattr(settings, "history_max_rows", 100)
+        await self._seed(3)
+
+        assert await history.prune_history() == 0
+        assert len(await history.list_recent()) == 3
+
+    @pytest.mark.asyncio
+    async def test_disabled_history_is_a_noop(self, temp_db, monkeypatch):
+        monkeypatch.setattr(settings, "history_enabled", False)
+        assert await history.prune_history() == 0

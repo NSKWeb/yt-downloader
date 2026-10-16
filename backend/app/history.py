@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .config import settings
@@ -112,6 +112,39 @@ def _delete(path: Path, task_id: str) -> None:
         conn.close()
 
 
+def _prune(path: Path, *, days: int, max_rows: int) -> int:
+    """Drop old rows and VACUUM the file back to the OS.
+
+    Two independent caps: an age limit, and a hard row count for the case where
+    a burst of jobs outruns the age window. DELETE alone leaves the freed pages
+    in the file, so VACUUM runs only when something was actually removed.
+    """
+    conn = _connect(path)
+    try:
+        removed = 0
+        if days > 0:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            removed += conn.execute(
+                "DELETE FROM downloads WHERE created_at < ?", (cutoff,)
+            ).rowcount
+
+        if max_rows > 0:
+            removed += conn.execute(
+                "DELETE FROM downloads WHERE task_id NOT IN ("
+                "  SELECT task_id FROM downloads ORDER BY created_at DESC LIMIT ?"
+                ")",
+                (max_rows,),
+            ).rowcount
+
+        conn.commit()
+        if removed:
+            # Must run outside a transaction, and only pays off when rows went.
+            conn.execute("VACUUM")
+        return removed
+    finally:
+        conn.close()
+
+
 async def init_db() -> None:
     if not settings.history_enabled:
         return
@@ -165,3 +198,25 @@ async def delete_entry(task_id: str) -> None:
         await asyncio.to_thread(_delete, settings.history_db_path, task_id)
     except Exception:  # noqa: BLE001
         logger.warning("could not delete history entry %s", task_id, exc_info=True)
+
+
+async def prune_history() -> int:
+    """Apply the retention caps. Never raises: history is non-critical."""
+    if not settings.history_enabled:
+        return 0
+    path = settings.history_db_path
+    if not path.exists():
+        return 0
+    try:
+        removed = await asyncio.to_thread(
+            _prune,
+            path,
+            days=settings.history_retention_days,
+            max_rows=settings.history_max_rows,
+        )
+        if removed:
+            logger.info("history pruned %d row(s)", removed)
+        return removed
+    except Exception:  # noqa: BLE001
+        logger.warning("could not prune history", exc_info=True)
+        return 0
