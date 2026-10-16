@@ -20,6 +20,7 @@ import logging
 import re
 import shutil
 import sys
+import time
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
@@ -239,6 +240,10 @@ async def run_download(
     )
     logger.info("starting download: %s", " ".join(cmd[:-1]) + " <url>")
 
+    # Files written before this point belong to earlier jobs, so the fallback
+    # below can tell a fresh artefact from a stale one.
+    started = time.time()
+
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
@@ -297,9 +302,44 @@ async def run_download(
     if final_path and Path(final_path).exists():
         return Path(final_path)
 
-    # Fall back to the newest file in the output directory.
+    return _pick_media_file(output_dir, since=started)
+
+
+# Extensions we are willing to hand back to the user. The output directory
+# also holds the SQLite history database, and a job can leave subtitle or
+# yt-dlp partial files behind, so "newest file wins" is not safe on its own —
+# it once served users history.db instead of their video.
+_MEDIA_EXTENSIONS = frozenset(
+    {
+        "mp4", "mkv", "webm", "mov", "avi", "flv", "m4v", "3gp", "ts",
+        "mp3", "m4a", "wav", "flac", "opus", "aac", "ogg", "weba",
+        "jpg", "jpeg", "png", "webp", "gif",
+    }
+)
+
+
+def _pick_media_file(output_dir: Path, *, since: float | None = None) -> Path:
+    """Return the newest media file in `output_dir`.
+
+    Used when yt-dlp exits successfully but prints no usable artefact path —
+    for example when a merge fails because ffmpeg is missing. Two guards keep
+    this from returning the wrong file:
+
+      * only known media extensions qualify, so the history database and any
+        sidecar subtitle files are never mistaken for the download;
+      * when `since` is given, only files written at or after that timestamp
+        qualify, so a stale file from an earlier job is not handed back.
+    """
+    # Allow a little slack for filesystem timestamp granularity.
+    floor = (since - 1.0) if since is not None else None
     candidates = sorted(
-        (p for p in output_dir.iterdir() if p.is_file()),
+        (
+            p
+            for p in output_dir.iterdir()
+            if p.is_file()
+            and p.suffix.lstrip(".").lower() in _MEDIA_EXTENSIONS
+            and (floor is None or p.stat().st_mtime >= floor)
+        ),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )

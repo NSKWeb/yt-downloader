@@ -91,6 +91,15 @@ docker compose config --quiet   # validate before pushing
   serialisation, after the handler has already returned.
 - **`/api/info` had no test coverage**, which is why the 500 above survived. It
   now has two tests. Add route tests when adding routes.
+- **The download fallback must filter, not just take the newest file.** When
+  yt-dlp exits 0 but prints no usable path — e.g. a merge fails because ffmpeg
+  is missing — `run_download` falls back to scanning `DOWNLOAD_DIR`. That
+  directory also holds the SQLite history database (`history_db_path` defaults
+  to `download_dir / "history.db"`), and jobs can leave `.part` and subtitle
+  files behind. A plain "newest file wins" once handed users `history.db`
+  instead of their video. `_pick_media_file` now takes only known media
+  extensions and, since `since`, only files written during this run. If you
+  touch that fallback, keep both guards and the `TestOutputPicker` tests.
 
 ## README assets
 

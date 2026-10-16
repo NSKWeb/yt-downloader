@@ -167,3 +167,81 @@ class TestAria2cArgs:
             "https://youtu.be/x", "video", "720p", "mp3", Path("/tmp"), "youtube"
         )
         assert cmd[cmd.index("--downloader") + 1] == "aria2c"
+
+
+class TestOutputPicker:
+    """The fallback must never hand back a non-media file.
+
+    The output directory also holds the SQLite history database, and a job can
+    leave subtitles or yt-dlp partials behind. A real run once served users
+    `history.db` instead of their video because it simply took the newest file.
+    """
+
+    def _mk(self, tmp_path, name, *, age=0.0):
+        p = tmp_path / name
+        p.write_bytes(b"x" * 10)
+        if age:
+            import os
+            import time
+
+            ts = time.time() - age
+            os.utime(p, (ts, ts))
+        return p
+
+    def test_ignores_history_database(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "history.db")
+        video = self._mk(tmp_path, "clip.mp4", age=30)
+        assert _pick_media_file(tmp_path) == video
+
+    def test_ignores_subtitles(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "clip.en.srt")
+        video = self._mk(tmp_path, "clip.mp4", age=30)
+        assert _pick_media_file(tmp_path) == video
+
+    def test_ignores_incomplete_partials(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "clip.mp4.part")
+        video = self._mk(tmp_path, "clip.mp4", age=30)
+        assert _pick_media_file(tmp_path) == video
+
+    def test_picks_newest_media_when_several(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "old.mp4", age=100)
+        new = self._mk(tmp_path, "new.mp4", age=1)
+        assert _pick_media_file(tmp_path) == new
+
+    def test_since_excludes_stale_files(self, tmp_path):
+        import time
+
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "stale.mp4", age=600)
+        now = time.time()
+        fresh = self._mk(tmp_path, "fresh.webm")
+        assert _pick_media_file(tmp_path, since=now) == fresh
+
+    def test_raises_when_no_media_present(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        self._mk(tmp_path, "history.db")
+        with pytest.raises(RuntimeError, match="produced no file"):
+            _pick_media_file(tmp_path)
+
+    @pytest.mark.parametrize("ext", ["mp4", "webm", "mkv", "mp3", "m4a", "opus", "jpg"])
+    def test_accepts_each_media_family(self, tmp_path, ext):
+        from app.downloader import _pick_media_file
+
+        f = self._mk(tmp_path, f"file.{ext}")
+        assert _pick_media_file(tmp_path) == f
+
+    def test_extension_match_is_case_insensitive(self, tmp_path):
+        from app.downloader import _pick_media_file
+
+        f = self._mk(tmp_path, "clip.MP4")
+        assert _pick_media_file(tmp_path) == f
