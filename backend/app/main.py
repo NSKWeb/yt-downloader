@@ -239,7 +239,11 @@ async def ws_progress(websocket: WebSocket, task_id: str):
             pass
 
 
-@app.get("/api/info", response_model=InfoResponse)
+@app.get(
+    "/api/info",
+    response_model=InfoResponse,
+    dependencies=[Depends(check_rate_limit)],
+)
 async def get_info(url: str) -> InfoResponse:
     """Metadata preview. Never raises for a bad URL; returns an empty payload.
 

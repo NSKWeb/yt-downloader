@@ -5,6 +5,7 @@ import pytest
 from app.models import DownloadRequest
 from app.platforms import (
     PLATFORMS,
+    _host_from_url,
     detect_platform,
     platform_catalog,
     platform_for_subdomain,
@@ -95,6 +96,53 @@ class TestDetection:
 
     def test_port_and_userinfo_stripped(self):
         assert detect_platform("https://user:pw@www.tiktok.com:443/@a/video/1").key == "tiktok"
+
+
+class TestHostExtractionAgreesWithTheFetchingClient:
+    """The allowlist must read the same host the download client will fetch.
+
+    Every case here once resolved to an allowlisted host while a real client
+    fetched something else, which turned the allowlist into an SSRF bypass.
+    """
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://127.0.0.1:12346#@youtube.com",
+            "http://127.0.0.1:12346#@youtube.com/path",
+            "http://127.0.0.1:12346#@youtube.com?x=1",
+            "http://evil.com#@youtube.com",
+            "http://2130706433#@youtube.com",
+            "http://0x7f000001#@youtube.com",
+            "http://[::1]#@youtube.com",
+            "http://169.254.169.254#@youtube.com",
+        ],
+    )
+    def test_fragment_cannot_smuggle_an_allowlisted_host(self, url):
+        assert detect_platform(url) is None
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://127.0.0.1:12346\\@youtube.com",
+            "http://169.254.169.254\\@youtube.com",
+        ],
+    )
+    def test_backslash_authority_is_rejected(self, url):
+        """A backslash is a path separator to browsers, never part of a host."""
+        assert detect_platform(url) is None
+
+    def test_fragment_is_ignored_for_a_legitimate_url(self):
+        """A real YouTube link keeps working; only the fragment is dropped."""
+        assert detect_platform("https://youtube.com/watch?v=x#t=30").key == "youtube"
+        assert _host_from_url("https://youtube.com/watch?v=x#t=30") == "youtube.com"
+
+    def test_empty_and_hostless_input_is_rejected(self):
+        for url in ("", "   ", "https://", "http:///path", "not a url"):
+            assert detect_platform(url) is None
+
+    def test_scheme_relative_input_still_resolves(self):
+        assert _host_from_url("youtube.com/watch?v=x") == "youtube.com"
 
 
 class TestSubdomainRouting:

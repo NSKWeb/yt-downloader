@@ -434,3 +434,47 @@ class TestHistoryEndpoints:
         assert r.status_code == 200
         assert r.json()["title"] == "Fine"
 
+
+class TestInfoIsRateLimited:
+    """A metadata probe forks a yt-dlp process, so it needs the same limiter."""
+
+    @pytest.fixture
+    def limited_client(self, monkeypatch):
+        monkeypatch.setattr(settings, "rate_limit_enabled", True)
+        monkeypatch.setattr(settings, "rate_limit_per_minute", 3)
+        monkeypatch.setattr(settings, "rate_limit_per_hour", 100)
+        monkeypatch.setattr(settings, "history_enabled", False)
+        app.state.redis = FakeRedis()
+        settings.download_dir.mkdir(parents=True, exist_ok=True)
+        yield TestClient(app)
+
+    def test_info_is_throttled_after_the_limit(self, limited_client, monkeypatch):
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Fine", "formats": []}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        url = "/api/info?url=https://www.youtube.com/watch?v=abc"
+
+        codes = [limited_client.get(url).status_code for _ in range(4)]
+
+        assert codes[:3] == [200, 200, 200]
+        assert codes[3] == 429
+
+    def test_download_and_info_share_one_budget(self, limited_client, monkeypatch):
+        """The limit must not be per-route, or the two can be interleaved."""
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Fine", "formats": []}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        body = {"url": "https://www.youtube.com/watch?v=abc", "mode": "video", "quality": "best"}
+
+        assert limited_client.post("/api/download", json=body).status_code == 200
+        assert limited_client.get("/api/info?url=https://www.youtube.com/watch?v=abc").status_code == 200
+        assert limited_client.post("/api/download", json=body).status_code == 200
+        assert limited_client.get("/api/info?url=https://www.youtube.com/watch?v=abc").status_code == 429
+
+

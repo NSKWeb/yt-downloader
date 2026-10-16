@@ -14,8 +14,8 @@ failing mysteriously.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 # Quality ladder for platforms that publish height-based video streams.
 STANDARD_VIDEO_QUALITIES = [
@@ -153,12 +153,40 @@ PLATFORMS: dict[str, Platform] = {
 
 
 def _host_from_url(url: str) -> str:
-    """Extract a bare hostname: lowercased, no port, no userinfo, no path."""
-    stripped = re.sub(r"^https?://", "", url.strip(), flags=re.IGNORECASE)
-    authority = stripped.split("/")[0].split("?")[0]
-    if "@" in authority:
-        authority = authority.rsplit("@", 1)[1]
-    return authority.split(":")[0].lower()
+    """Extract a bare hostname: lowercased, no port, no userinfo, no path.
+
+    This must agree with what the HTTP client downstream will actually fetch,
+    so it parses rather than pattern-matches. Two shapes made the old
+    split-then-rsplit("@") version disagree with every real client:
+
+      * `http://127.0.0.1:12346#@youtube.com` — the "@youtube.com" sits in the
+        fragment, so rsplit("@") returned `youtube.com` while yt-dlp fetched
+        127.0.0.1. Stripping the fragment first fixes it.
+      * `http://127.0.0.1:12346\\@youtube.com` — browsers and several HTTP
+        clients treat a backslash as a path separator, but the old code read
+        everything after "@" as the authority. A backslash is never valid in a
+        URL authority, so such input is rejected outright.
+
+    Anything that does not parse into a hostname returns "", which never
+    matches the allowlist.
+    """
+    candidate = (url or "").strip()
+    if "\\" in candidate:
+        return ""
+
+    # The fragment is client-side only and must not influence host detection.
+    candidate = candidate.split("#", 1)[0]
+
+    # urlsplit only fills in netloc when a scheme is present. Add the
+    # scheme-relative prefix for bare input like "youtube.com/watch?v=x".
+    if "//" not in candidate.split("?", 1)[0]:
+        candidate = "//" + candidate
+
+    try:
+        host = urlsplit(candidate).hostname
+    except ValueError:
+        return ""
+    return (host or "").lower()
 
 
 def detect_platform(url: str) -> Platform | None:

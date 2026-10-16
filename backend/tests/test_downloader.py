@@ -195,6 +195,7 @@ class TestOutputPicker:
         video = self._mk(tmp_path, "clip.mp4", age=30)
         assert _pick_media_file(tmp_path) == video
 
+
     def test_ignores_subtitles(self, tmp_path):
         from app.downloader import _pick_media_file
 
@@ -245,3 +246,69 @@ class TestOutputPicker:
 
         f = self._mk(tmp_path, "clip.MP4")
         assert _pick_media_file(tmp_path) == f
+
+
+class TestProbeConcurrencyBound:
+    """Each /api/info call forks a yt-dlp process, so concurrency must be capped.
+
+    The route is unauthenticated; before the semaphore, 25 simultaneous requests
+    started 25 processes and exhausted memory long before the queue drained.
+    """
+
+    @pytest.mark.asyncio
+    async def test_concurrent_probes_are_bounded(self, monkeypatch):
+        import asyncio
+
+        from app import downloader
+
+        peak = 0
+        live = 0
+
+        async def fake_probe(url):
+            nonlocal peak, live
+            live += 1
+            peak = max(peak, live)
+            await asyncio.sleep(0.05)
+            live -= 1
+            return {"title": url}
+
+        # Fresh semaphore so the test does not inherit a partially drained one.
+        monkeypatch.setattr(downloader, "_probe_semaphore", None)
+        monkeypatch.setattr(downloader, "_probe_info_uncapped", fake_probe)
+
+        results = await asyncio.gather(
+            *(downloader.probe_info(f"u{i}") for i in range(20))
+        )
+
+        assert len(results) == 20
+        assert peak <= downloader._PROBE_CONCURRENCY, (
+            f"{peak} probes ran at once; cap is {downloader._PROBE_CONCURRENCY}"
+        )
+        assert peak > 1, "the cap must not serialise probes"
+
+    @pytest.mark.asyncio
+    async def test_semaphore_is_released_after_a_failure(self, monkeypatch):
+        """A crashing probe must not leak a slot and stall every later request."""
+        import asyncio
+
+        from app import downloader
+
+        calls = 0
+
+        async def boom(url):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("probe blew up")
+            return {"title": "ok"}
+
+        monkeypatch.setattr(downloader, "_probe_semaphore", None)
+        monkeypatch.setattr(downloader, "_probe_info_uncapped", boom)
+
+        with pytest.raises(RuntimeError):
+            await downloader.probe_info("first")
+
+        # If the slot leaked, this would block until the test times out.
+        assert await asyncio.wait_for(downloader.probe_info("second"), timeout=2) == {
+            "title": "ok"
+        }

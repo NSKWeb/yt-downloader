@@ -108,6 +108,19 @@ docker compose config --quiet   # validate before pushing
   reached `http://127.0.0.1:12000/api/themes` and returned the body. A new
   route that accepts a URL needs the same guard; `test_info_rejects_hosts_outside_the_allowlist`
   is the pattern.
+- **Host extraction must agree with the fetching client — parse, don't split.**
+  `_host_from_url` drops the fragment and rejects backslashes before calling
+  `urlsplit`. The previous `rsplit("@")` version read `youtube.com` out of
+  `http://127.0.0.1:12346#@youtube.com` while yt-dlp fetched loopback, so the
+  allowlist was an SSRF bypass for any URL with `#@` (or a backslash) in it.
+  Confirmed end to end: `/api/info` returned the loopback body with HTTP 200.
+  The `TestHostExtractionAgreesWithTheFetchingClient` cases are the regression
+  guard; add a shape there before "simplifying" this function.
+- **`/api/info` is rate-limited and its subprocesses are capped.** It is
+  unauthenticated and forks a yt-dlp process per call, so it shares the download
+  budget and goes through `_probe_slot`. Before both, 25 simultaneous requests
+  started 25 processes and fourteen sequential ones never tripped the limiter.
+  A new unauthenticated route that shells out needs the same two guards.
 - **`X-Forwarded-For` is only believed from a trusted peer.** `client_key`
   returns the rightmost hop it can vouch for, and only when
   `request.client.host` is loopback/RFC1918 or matches `TRUSTED_PROXIES`.

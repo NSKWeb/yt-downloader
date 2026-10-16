@@ -35,6 +35,22 @@ ProgressCallback = Callable[[dict], Awaitable[None] | None]
 # so it always resolves to the same environment the app was installed into.
 YTDLP = [sys.executable, "-m", "yt_dlp"]
 
+# /api/info is unauthenticated and forks a yt-dlp process per call. Downloads go
+# through the ARQ queue, which is bounded by MAX_CONCURRENT_JOBS, but metadata
+# probes ran straight off the event loop: 25 simultaneous requests started 25
+# processes. This semaphore is the equivalent bound for probes.
+_PROBE_CONCURRENCY = 4
+_probe_semaphore: asyncio.Semaphore | None = None
+
+
+def _probe_slot() -> asyncio.Semaphore:
+    """Lazily build the semaphore so it binds to the running event loop."""
+    global _probe_semaphore
+    if _probe_semaphore is None:
+        _probe_semaphore = asyncio.Semaphore(_PROBE_CONCURRENCY)
+    return _probe_semaphore
+
+
 _PROGRESS_RE = re.compile(
     r"\[download\]\s+(?P<pct>[\d.]+)%"
     r"(?:\s+of\s+~?\s*(?P<size>[\d.]+\w+))?"
@@ -349,7 +365,17 @@ def _pick_media_file(output_dir: Path, *, since: float | None = None) -> Path:
 
 
 async def probe_info(url: str) -> dict:
-    """Fetch metadata without downloading. Returns {} on failure."""
+    """Fetch metadata without downloading. Returns {} on failure.
+
+    Each call forks a yt-dlp process, so concurrent callers are capped: without
+    a bound, N simultaneous requests to /api/info start N processes and the
+    host runs out of memory long before the queue drains.
+    """
+    async with _probe_slot():
+        return await _probe_info_uncapped(url)
+
+
+async def _probe_info_uncapped(url: str) -> dict:
     cmd = [
         *YTDLP,
         "--no-playlist",
