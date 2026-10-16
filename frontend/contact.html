@@ -7,7 +7,7 @@
 <meta name="description" content="How to reach the yt-downloader maintainers.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
-<script>/* palette before first paint, so there is no flash of the wrong accent */try{var t=localStorage.getItem("ytdl-accent");if(t==="serenity"||t==="cerulean"||t==="tiffany"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
+<script>/* appearance before first paint, so there is no flash of the wrong accent or mode */try{var t=localStorage.getItem("ytdl-accent");if(t==="serenity"||t==="cerulean"||t==="tiffany"){document.documentElement.setAttribute("data-theme",t);}var m=localStorage.getItem("ytdl-mode");if(m!=="dark"&&m!=="light"){m=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.setAttribute("data-mode",m);}catch(e){}</script>
 <script src="/assets/theme.js" defer></script>
 </head>
 <body>
@@ -21,10 +21,7 @@
       <a href="/about.html">About</a>
       <a href="/contact.html">Contact</a>
     </nav>
-    <div class="mood" data-mood>
-      <span class="mood-label">Mood</span>
-      <div class="mood-swatches" role="group" aria-label="Accent colour"></div>
-    </div>
+    <div class="mode-mount" data-mode-mount></div>
   </div>
 </header>
 
@@ -77,6 +74,9 @@
 
 <footer class="site">
   <div class="container">
+    <div class="mood" data-mood>
+      <div class="mood-options" data-mood-options></div>
+    </div>
     <div class="links">
       <a href="/about.html">About Us</a>
       <a href="/contact.html">Contact Us</a>

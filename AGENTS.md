@@ -94,11 +94,20 @@ docker compose config --quiet   # validate before pushing
 
 ## README assets
 
-- **The accent is selectable, and each palette splits across four tokens.**
-  Three palettes ship (`serenity`, `cerulean`, `tiffany`); the header's Mood
-  control switches between them and `localStorage["ytdl-accent"]` remembers the
-  choice. There are no user accounts, so nothing is stored server-side.
-  - `--accent` — text, borders, progress fill on dark
+- **Two appearance preferences ship: accent and light/dark mode.**
+  - Accent: three palettes (`serenity`, `cerulean`, `tiffany`), chosen from a
+    picker in the **footer**. Stored in `localStorage["ytdl-accent"]`, applied
+    as `[data-theme]`.
+  - Mode: `dark` (default) or `light`, chosen from a toggle at the **top right
+    of the header**. Stored in `localStorage["ytdl-mode"]`, applied as
+    `[data-mode]`. An unset mode follows the OS via `prefers-color-scheme`.
+
+  There are no user accounts, so nothing is stored server-side. The two controls
+  are deliberately in different places: a display preference belongs in the
+  header, and the footer keeps the brand choice out of the way.
+
+  Each palette splits across four roles, plus an RGB triple:
+  - `--accent` — text, borders, progress fill, chips
   - `--accent-solid` — filled buttons and active tabs
   - `--accent-ink` — the text on those filled surfaces
   - `--accent-hover` — hover fill, still clears the ink
@@ -109,14 +118,27 @@ docker compose config --quiet   # validate before pushing
     through this token.
 
   The roles cannot share one variable. These accents are light, so they read as
-  text on `--bg` but cannot carry white text as a fill: filled surfaces use
-  `--accent-ink`, **never** `#fff` (white on any of them is about 2:1). All
-  three palettes clear WCAG AA on every role; the ratios are recorded in
-  `backend/app/themes.py` and asserted by `tests/test_themes.py`, which also
-  recomputes them from the hex values and checks the `:root` fallback, each
-  `[data-theme]` block and every `--accent-rgb` triple in `style.css` against
-  `GET /api/themes`. That test is the guard: editing a colour in one place
-  without the other fails CI.
+  text on the dark `--bg` but cannot carry white text as a fill: filled surfaces
+  use `--accent-ink`, **never** `#fff` (white on any of them is about 2:1). All
+  three palettes clear WCAG AA on every role in both modes; the ratios are
+  recorded in `backend/app/themes.py` and asserted by `tests/test_themes.py`,
+  which also recomputes them from the hex values and checks the `:root` fallback,
+  each `[data-theme]` block and every `--accent-rgb` triple in `style.css`
+  against `GET /api/themes`. That test is the guard: editing a colour in one
+  place without the other fails CI.
+
+  **Light mode changes exactly one role.** `--accent` is measured against
+  `--bg`, and `--bg` is what the mode swaps, so on the light page all three
+  brand colours fall to 1.5-2.3:1 and each needs a darker sibling
+  (`accent_light` in the catalogue: `#606F8A`, `#5F7081`, `#477772`, all near
+  4.75:1). The fill roles are **mode-independent** — a filled button keeps the
+  dark ink on the brand colour on either background — so light mode still shows
+  the brand colour on the primary button. The focus ring is opaque in light mode
+  rather than the 40% tint used on dark: a translucent tint of any of these is
+  under 2:1 on a light page, below the 3:1 a focus indicator should clear. The
+  state tokens (progress, alerts, success) are mode-dependent too and have their
+  own light values in the `html[data-mode="light"]` block; keep new state
+  colours in that block rather than hardcoding them.
 
   History, so it is not retried: bright red (`#ff0033`) vibrates on the dark
   background, reads as "error" on a primary action, and measured only 3.96:1
@@ -124,34 +146,36 @@ docker compose config --quiet   # validate before pushing
   to the selectable set.
 
   Colours live in the `:root` block plus one `[data-theme]` block per palette in
-  `frontend/assets/style.css`, mirrored in `backend/app/themes.py`. A small
-  inline snippet in each page's `<head>` applies the stored `[data-theme]`
-  before first paint so there is no flash of the wrong accent; keep that snippet
-  in sync when adding a palette. `frontend/assets/favicon.ico` is a flat
-  `--accent-solid` square, so adding a palette means recapturing the screenshots
-  and rewriting the favicon.
+  `frontend/assets/style.css`, with the light overrides in the
+  `html[data-mode="light"][data-theme=...]` blocks; all of it is mirrored in
+  `backend/app/themes.py`. The palette selectors are prefixed with `html` on
+  purpose so a stored `[data-theme]` still out-specifies `:root`. A small inline
+  snippet in each page's `<head>` applies the stored `data-theme` **and**
+  `data-mode` before first paint so there is no flash of the wrong accent or
+  mode; keep that snippet in sync when adding a palette. `frontend/assets/
+  favicon.ico` is a flat `--accent-solid` square, so adding a palette means
+  recapturing the screenshots and rewriting the favicon.
 
   **The palette is written down in three places, and the frontend is the one
   that decides.** `frontend/assets/theme.js` carries its own `PALETTES` array,
   which is a real duplication rather than an oversight: the pre-paint snippet
   must resolve the stored accent synchronously, before any fetch can return.
   `tests/test_themes.py` therefore cross-checks all three -- the stylesheet,
-  `app/themes.py` and `theme.js` -- plus the wiring of every page, so a hex, key,
-  name, default or storage key edited in one place alone fails CI.
+  `app/themes.py` and `theme.js` -- plus the default mode, the mode list, both
+  storage keys, and the wiring and control placement of every page, so a hex,
+  key, name, default, mode or storage key edited in one place alone fails CI.
 
   Do not move the default to the backend. It is tempting, but the frontend is
-  static HTML behind nginx (only `/api` and `/ws` reach FastAPI), so the backend
-  cannot inject into the page and a server-supplied default would have to arrive
-  by fetch -- after first paint, which is exactly the flash the inline snippet
-  exists to prevent. A backend round-trip would buy a runtime cost and a flash in
-  exchange for deduplicating three lists that a test already keeps honest. If a
-  server-side override is ever genuinely needed, the flash-free shape is a tiny
-  `:root{...}` stylesheet served from the API and linked in `<head>` (which
-  requires making the palette selectors `html[data-theme="..."]` so a stored
-  preference still wins on specificity) -- not a config value the JS fetches.
-  There is also no admin or auth mechanism anywhere in the backend, so a runtime
-  "set the mood for everyone" endpoint would mean inventing one; see the scope
-  boundary below.
+  served as static files (nginx in the compose stack; FastAPI also serves them
+  directly), so the backend cannot inject into the page and a server-supplied
+  default would have to arrive by fetch -- after first paint, which is exactly
+  the flash the inline snippet exists to prevent. A backend round-trip would buy
+  a runtime cost and a flash in exchange for deduplicating three lists that a
+  test already keeps honest. If a server-side override is ever genuinely needed,
+  the flash-free shape is a tiny `:root{...}` stylesheet served from the API and
+  linked in `<head>` -- not a config value the JS fetches. There is also no admin
+  or auth mechanism anywhere in the backend, so a runtime "set the mood for
+  everyone" endpoint would mean inventing one; see the scope boundary below.
 - `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
   pipeline, platform matrix). They use only text, rects, lines and paths, so
   GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above

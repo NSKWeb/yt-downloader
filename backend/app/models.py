@@ -145,6 +145,12 @@ class AccentPalette(BaseModel):
     the four CSS custom properties. ``contrast_*`` are the measured WCAG ratios
     against the dark page (#0d1117) and the fill, so the caller can see at a
     glance that a palette was checked rather than picked by eye.
+
+    ``accent_light`` is the only role that changes between modes. The other
+    three are mode-independent: a filled button keeps dark ink on the brand
+    colour whichever page background it sits on. ``accent`` is measured against
+    --bg, which is what the mode swaps, so on a light page all three brand
+    colours land near 1.5-2.3:1 and need a darker sibling.
     """
 
     key: str
@@ -154,16 +160,23 @@ class AccentPalette(BaseModel):
     accent_solid: str
     accent_ink: str
     accent_hover: str
+    accent_light: str
     contrast_accent: float
+    contrast_accent_light: float
     contrast_solid: float
     contrast_hover: float
 
 
 class ThemeInfo(BaseModel):
-    """The palette catalogue: which themes exist and which is the default."""
+    """The palette and mode catalogue: what exists, and what is the default."""
 
     default: str
     storage_key: str
+    default_mode: str
+    mode_storage_key: str
+    modes: list[str] = Field(default_factory=list)
+    # The page background each mode paints, so a caller can verify the ratios.
+    surfaces: dict[str, str] = Field(default_factory=dict)
     themes: list[AccentPalette] = Field(default_factory=list)
 
 

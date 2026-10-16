@@ -38,6 +38,33 @@
   --ok: #3fb950;
   --warn: #d29922;
 
+  /* ---- Semantic state -----------------------------------------------------
+     Progress, alert and success surfaces. Kept apart from the accent so a
+     palette switch cannot recolour a status, and flipped per mode so light mode
+     does not inherit the dark surfaces. */
+  --progress-done-border: #1f6b32;
+  --progress-done-bg: #12261a;
+  --progress-failed-border: #8a3a47;
+  --progress-failed-bg: #2b1418;
+  --alert-error-bg: #3a1a20;
+  --alert-error-border: #8a3a47;
+  --alert-error-text: #ffc9d2;
+  --alert-ok-bg: #12261a;
+  --alert-ok-border: #1f6b32;
+  --alert-ok-text: #8ce9a3;
+  --success-grad-top: #3fb950;
+  --success-grad-bottom: #2ea043;
+  --success-ink: #06170b;
+
+  /* Long-form page copy and the ad placeholder: a touch lighter than --text
+     and --muted, and inverted in light mode. */
+  --body-text: #c3ccd6;
+  --ad-text: #56606d;
+
+  /* Hairline drawn on top of a coloured swatch, so it has to read against the
+     swatch rather than the page. Inverts with the mode. */
+  --swatch-ring: rgba(255, 255, 255, 0.25);
+
   /* ---- Radii ------------------------------------------------------------ */
   --radius: 10px;
   --radius-sm: 8px;
@@ -92,7 +119,7 @@
    colour. Every ratio below is measured against --bg #0d1117.
    ========================================================================== */
 
-[data-theme="serenity"] {
+html[data-theme="serenity"] {
   --accent: #92A8D1;        /* Pantone 15-3919 · 2016   7.88:1 */
   --accent-solid: #92A8D1;
   --accent-ink: #0c1931;    /* 7.29:1 on the fill              */
@@ -100,7 +127,7 @@
   --accent-rgb: 146, 168, 209;
 }
 
-[data-theme="cerulean"] {
+html[data-theme="cerulean"] {
   --accent: #9BB7D4;        /* Pantone 15-4020 · 2000   9.12:1 */
   --accent-solid: #9BB7D4;
   --accent-ink: #0c1e31;    /* 8.12:1 on the fill              */
@@ -108,12 +135,85 @@
   --accent-rgb: 155, 183, 212;
 }
 
-[data-theme="tiffany"] {
+html[data-theme="tiffany"] {
   --accent: #81D8D0;        /* Tiffany & Co.           11.41:1 */
   --accent-solid: #81D8D0;
   --accent-ink: #083531;    /* 8.10:1 on the fill              */
   --accent-hover: #98dfd9;  /* 8.88:1 with the ink             */
   --accent-rgb: 129, 216, 208;
+}
+
+/* ==========================================================================
+   Light mode
+
+   Opt-in: <html data-mode="light">, set before first paint by the inline
+   snippet in each page's <head>. There is no prefers-color-scheme block here on
+   purpose -- the snippet reads that preference itself and writes the attribute,
+   which keeps the light values in one place instead of duplicated into a media
+   query that would then have to out-specify these selectors.
+
+   Only --accent has to change per palette. The other three roles are already
+   mode-independent: --accent-solid stays the exact brand colour (its fill keeps
+   dark ink either way, 7.29:1 on Serenity), and --accent-hover already carries
+   ink. --accent (link text) does have to darken, because it is measured against
+   --bg, which is what the mode changes -- all three brand colours are only
+   1.5-2.3:1 on a light page.
+   ========================================================================== */
+html[data-mode="light"] {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --surface-3: #e4e8ec;
+  --border: #d0d7de;
+  --border-strong: #b1b8c0;
+  --text: #1f2328;
+  --muted: #59636e;
+
+  --ok: #1a7f37;
+  --warn: #9a6700;
+
+  --progress-done-border: #1a7f37;
+  --progress-done-bg: #c8f0d6;
+  --progress-failed-border: #cf222e;
+  --progress-failed-bg: #ffe0dd;
+  --alert-error-bg: #ffe0dd;
+  --alert-error-border: #cf222e;
+  --alert-error-text: #82071e;
+  --alert-ok-bg: #c8f0d6;
+  --alert-ok-border: #1a7f37;
+  --alert-ok-text: #0a3622;
+  --success-grad-top: #1f7a33;
+  --success-grad-bottom: #156f2f;
+  --success-ink: #ffffff;
+
+  --body-text: #32383f;
+  --ad-text: #6e7781;
+  --swatch-ring: rgba(0, 0, 0, 0.25);
+
+  --shadow-1: 0 1px 2px rgba(31, 35, 40, 0.12);
+  --shadow-2: 0 6px 20px -6px rgba(31, 35, 40, 0.18),
+              0 2px 6px rgba(31, 35, 40, 0.1);
+}
+
+/* Light accents, one per palette. --accent-rgb tracks --accent in each mode so
+   the ring, glow and every shadow tint stay in step with the text colour. The
+   ring is opaque here rather than the 40% it uses on dark: a translucent tint
+   of any of these is under 2:1 on a light page, well below the 3:1 that a focus
+   indicator is expected to clear. */
+html[data-mode="light"][data-theme="serenity"] {
+  --accent: #606F8A;        /* 4.77:1 on --bg */
+  --accent-rgb: 96, 111, 138;
+  --ring: 0 0 0 3px var(--accent);
+}
+html[data-mode="light"][data-theme="cerulean"] {
+  --accent: #5F7081;        /* 4.79:1 on --bg */
+  --accent-rgb: 95, 112, 129;
+  --ring: 0 0 0 3px var(--accent);
+}
+html[data-mode="light"][data-theme="tiffany"] {
+  --accent: #477772;        /* 4.75:1 on --bg */
+  --accent-rgb: 71, 119, 114;
+  --ring: 0 0 0 3px var(--accent);
 }
 
 * { box-sizing: border-box; }
@@ -210,62 +310,89 @@ nav.site a {
 }
 nav.site a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 
-/* ---------- Mood / accent switcher ---------------------------------------
-   A segmented control, one button per palette. A colour swatch behind the
-   label shows the palette without relying on the name. */
-.mood {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-.mood-label {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-.mood-swatches {
-  display: flex;
-  gap: var(--sp-1);
-  padding: var(--sp-1);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-}
-.mood-btn {
+/* ---------- Header dark/light toggle ----------
+   Sits at the top right of the header, where a display preference is
+   conventionally found. Renders the mode it switches *to*. */
+.mode-toggle {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 6px var(--sp-3) 6px 8px;
-  border: 1px solid transparent;
+  flex: none;
+  min-height: 34px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
-  background: transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.mode-toggle:hover { background: var(--surface-3); border-color: var(--accent); }
+.mode-toggle .mode-icon { display: inline-flex; }
+.mode-toggle .mode-icon svg { display: block; }
+
+/* ---------- Footer accent picker ---------- */
+.mood {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  padding-bottom: var(--sp-5);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.mood-legend {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.mood-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.mood-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 34px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
   color: var(--muted);
   font: inherit;
   font-size: var(--fs-sm);
   cursor: pointer;
-  white-space: nowrap;
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
 }
-.mood-btn:hover { color: var(--text); background: var(--surface-3); }
-.mood-btn .swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex: none;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+.mood-option:hover { color: var(--text); background: var(--surface-3); }
+.mood-option .mood-source {
+  font-size: var(--fs-xs);
+  opacity: 0.75;
 }
-.mood-btn[aria-pressed="true"] {
+.mood-option[aria-checked="true"] {
   color: var(--accent-ink);
   background: var(--accent-solid);
   border-color: var(--accent-solid);
   font-weight: 600;
 }
-/* The swatch is redundant once the button itself is the colour. */
-.mood-btn[aria-pressed="true"] .swatch { border-color: rgba(0, 0, 0, 0.25); }
+.mood-option[aria-checked="true"] .mood-source { opacity: 0.85; }
+.mood-option[aria-checked="true"] .swatch { border-color: rgba(0, 0, 0, 0.25); }
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  border: 1px solid var(--swatch-ring);
+}
 
 /* ---------- Hero ---------- */
 .hero {
@@ -467,8 +594,14 @@ select {
   animation: rise 0.25s var(--ease) both;
 }
 .progress-wrap.visible { display: block; }
-.progress-wrap.done { border-color: #1f6b32; background: #12261a; }
-.progress-wrap.failed { border-color: #8a3a47; background: #2b1418; }
+.progress-wrap.done {
+  border-color: var(--progress-done-border);
+  background: var(--progress-done-bg);
+}
+.progress-wrap.failed {
+  border-color: var(--progress-failed-border);
+  background: var(--progress-failed-bg);
+}
 
 .progress-head {
   display: flex;
@@ -568,16 +701,24 @@ select {
 .alert.visible { display: flex; }
 .alert .icon { margin-top: 2px; }
 
-.alert.error { background: #3a1a20; border: 1px solid #8a3a47; color: #ffc9d2; }
-.alert.ok { background: #12261a; border: 1px solid #1f6b32; color: #8ce9a3; }
+.alert.error {
+  background: var(--alert-error-bg);
+  border: 1px solid var(--alert-error-border);
+  color: var(--alert-error-text);
+}
+.alert.ok {
+  background: var(--alert-ok-bg);
+  border: 1px solid var(--alert-ok-border);
+  color: var(--alert-ok-text);
+}
 
 .download-link {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   margin-top: var(--sp-4);
-  background: linear-gradient(180deg, var(--ok), #2ea043);
-  color: #06170b;
+  background: linear-gradient(180deg, var(--success-grad-top), var(--success-grad-bottom));
+  color: var(--success-ink);
   padding: var(--sp-3) var(--sp-6);
   min-height: 44px;
   border-radius: var(--radius-sm);
@@ -613,7 +754,7 @@ select {
   justify-content: center;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  color: #56606d;
+  color: var(--ad-text);
   font-size: var(--fs-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -624,7 +765,7 @@ select {
 .page h1 { font-size: var(--fs-2xl); margin: 0 0 var(--sp-2); letter-spacing: -0.02em; }
 .page h2 { font-size: var(--fs-xl); margin: var(--sp-7) 0 var(--sp-3); }
 .page h3 { font-size: var(--fs-lg); margin: var(--sp-6) 0 var(--sp-2); }
-.page p, .page li { color: #c3ccd6; }
+.page p, .page li { color: var(--body-text); }
 .page .updated { color: var(--muted); font-size: var(--fs-sm); margin-bottom: var(--sp-6); }
 
 .note {

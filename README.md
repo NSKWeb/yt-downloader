@@ -71,8 +71,19 @@ direct link to `/api/file/{task_id}`.*
 
 ## Colour and accessibility
 
-The accent is selectable. Three palettes ship, each the brand colour used
-unchanged, and the header carries a **Mood** control to switch between them:
+Two per-visitor preferences ship, both stored in `localStorage` and applied as
+attributes on `<html>` before first paint:
+
+- **Accent** — one of three brand palettes, chosen from a picker in the footer.
+- **Mode** — dark or light, chosen from a toggle at the top right of the header.
+
+There are no user accounts, so there is no server-side preference to keep. A
+small inline snippet in each page's `<head>` applies both stored values before
+first paint, so the page never flashes the wrong accent or mode.
+
+### Accent palettes
+
+Three palettes ship, each the brand colour used unchanged:
 
 | Key | Name | Hex | Source |
 |-----|------|-----|--------|
@@ -80,11 +91,7 @@ unchanged, and the header carries a **Mood** control to switch between them:
 | `cerulean` | Cerulean | `#9BB7D4` | Pantone 15-4020 · Colour of the Year 2000 |
 | `tiffany` | Tiffany Blue | `#81D8D0` | Tiffany & Co. |
 
-Selection is per-browser: the choice is stored in `localStorage` under
-`ytdl-accent` and applied as `[data-theme]` on `<html>`. There are no user
-accounts, so there is no server-side preference to keep. A small inline snippet
-in each page's `<head>` applies the stored value before first paint, so the page
-never flashes the wrong accent.
+The choice is stored under `ytdl-accent` and applied as `[data-theme]`.
 
 The brand colour has been through three epochs — a saturated red (`#ff0033`),
 then a rose, then sky blue. Bright red on a dark surface is uncomfortable to
@@ -117,20 +124,44 @@ Every value clears AA. `--accent-rgb` exists because shadows, the focus ring and
 the hero glow need a translucent tint of the accent — with a hex alone they
 would stay blue after a switch.
 
+### Light mode
+
+Dark is the default; light is opt-in from the header toggle, and an unset
+preference follows the OS via `prefers-color-scheme`. The mode is stored under
+`ytdl-mode` and applied as `[data-mode]`.
+
+Only one role changes between modes. `--accent` is measured against `--bg`, and
+`--bg` is what the mode swaps, so on the light page all three brand colours drop
+to 1.5–2.3:1 and need a darker sibling:
+
+| Palette | Dark `--accent` | Light `--accent` | Light `--accent` on `--bg` |
+|---------|-----------------|------------------|----------------------------|
+| Serenity | `#92A8D1` | `#606F8A` | 4.77:1 |
+| Cerulean | `#9BB7D4` | `#5F7081` | 4.79:1 |
+| Tiffany Blue | `#81D8D0` | `#477772` | 4.75:1 |
+
+The fill roles do **not** change. A filled button keeps the dark ink on the
+brand colour whichever background it sits on, so light mode still shows the
+brand colour in the most visible place — the primary button. The focus ring,
+however, becomes opaque in light mode: a 40% tint of any of these is under 2:1
+on a light page, below the 3:1 a focus indicator is expected to clear.
+
 `backend/tests/test_themes.py` recomputes these ratios from the hex values and
 cross-checks all three places a palette is written down — the stylesheet, the API
 catalogue, and `theme.js` (which needs its own copy so the pre-paint snippet can
 resolve the accent synchronously) — plus the wiring of every page. A hand-edited
-colour, a stale RGB tint, a drifted name or a wrong ratio fails CI.
+colour, a stale RGB tint, a drifted name, a wrong ratio, a missing light sibling
+or an over-light one fails CI.
 
 The error alert keeps a red tint on purpose, because red is the correct signal
-for an error (`#3a1a20` on `#ffc9d2`, 10.78:1). It is deliberately distinct from
-every accent.
+for an error. It is deliberately distinct from every accent, and flips to a
+light-red surface in light mode.
 
 Accent colours live in `frontend/assets/style.css` (the `:root` block plus one
-`[data-theme]` block per palette) and are mirrored in `backend/app/themes.py`.
-The favicon bakes in `--accent-solid`. Because the screenshots show the UI,
-changing a palette means recapturing them.
+`[data-theme]` block per palette, with the light overrides in the
+`html[data-mode="light"][data-theme=…]` blocks) and are mirrored in
+`backend/app/themes.py`. The favicon bakes in `--accent-solid`. Because the
+screenshots show the UI, changing a palette means recapturing them.
 
 ### Design tokens
 
