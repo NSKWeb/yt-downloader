@@ -118,9 +118,10 @@ the hero glow need a translucent tint of the accent — with a hex alone they
 would stay blue after a switch.
 
 `backend/tests/test_themes.py` recomputes these ratios from the hex values and
-cross-checks the stylesheet against `GET /api/themes` — the `:root` fallback,
-each `[data-theme]` block, and every `--accent-rgb` triple. A hand-edited colour,
-a stale RGB tint or a wrong ratio fails CI.
+cross-checks all three places a palette is written down — the stylesheet, the API
+catalogue, and `theme.js` (which needs its own copy so the pre-paint snippet can
+resolve the accent synchronously) — plus the wiring of every page. A hand-edited
+colour, a stale RGB tint, a drifted name or a wrong ratio fails CI.
 
 The error alert keeps a red tint on purpose, because red is the correct signal
 for an error (`#3a1a20` on `#ffc9d2`, 10.78:1). It is deliberately distinct from
