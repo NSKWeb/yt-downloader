@@ -132,6 +132,42 @@ docker compose config --quiet   # validate before pushing
   `cleanup_expired_files` sweeps, and the file is idle between jobs — so it was
   deleted one TTL after the last download. The job now skips the configured
   database and its `-wal`/`-shm` siblings.
+- **`--match-filter` rejection exits 0, so success cannot be inferred from the
+  return code.** yt-dlp prints `<title> does not pass filter (<expr>), skipping
+  ..` and exits 0 having written nothing. `run_download` must check stdout for
+  that line before the `_pick_media_file` fallback, or the fallback hands back a
+  file from an earlier job. `TestFilteredDownloadIsAFailure` covers both halves.
+- **The duration filter uses `<?`, not `<`.** `MAX_DURATION_SECONDS` was dead
+  config until `build_command` passed it through. The optional-match operator
+  means a video with no reported duration (live streams, some extractors) still
+  downloads; plain `<` would reject them. `/api/info` mirrors the rule by only
+  rejecting a numeric duration over the cap.
+- **History retention runs as its own cron, offset from the file sweep.**
+  `prune_history_task` fires at minute 30 and `cleanup_expired_files` at minute
+  0, so the two writers do not contend for the SQLite lock. `_prune` deletes by
+  age and by row count, then VACUUMs only when rows actually went — a DELETE
+  alone leaves the freed pages in the file.
+- **The container runs as uid/gid 10001, and the image has no curl.** Any
+  compose healthcheck must use `python -c` (the interpreter is already there),
+  and a bind-mounted downloads directory must be chowned to 10001. The `app`
+  user is created with a fixed uid for exactly that reason.
+- **nginx must not name `api` in an `upstream` block.** nginx resolves an
+  upstream server name once, at startup. Recreating the api container gives it a
+  new address, so nginx keeps proxying to the old IP and serves 502 to every
+  caller until nginx itself restarts — this is exactly what happened on the
+  verification rebuild. The config now uses `resolver 127.0.0.11` plus
+  `set $api_backend api:8000` and `proxy_pass http://$api_backend`, which forces
+  per-request resolution. Reproduced and fixed by pinning the old IP with a
+  placeholder container so the replacement api had to take a different one.
+- **Job state lives in a WATCH/MULTI transaction, not a GET-then-SET.**
+  `update_job` is called from the progress callback, the metadata callback, and
+  `_finish`; two of those can interleave on one job. Both read the same
+  snapshot, each sets its own field, and the second SET drops the first's — a
+  probe with two writers on disjoint fields lost an update in 58 of 60 trials.
+  Retried with jittered backoff, since fixed-count immediate retries still lost
+  one job in 60. `tests/test_storage.py` fakes the pipeline faithfully (it
+  raises WatchError and yields mid-read) so the regression test fails against
+  the old code.
 
 ## README assets
 

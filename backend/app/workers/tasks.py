@@ -14,7 +14,7 @@ from arq import cron
 
 from ..config import settings
 from ..downloader import run_download
-from ..history import init_db, record_job
+from ..history import init_db, prune_history, record_job
 from ..models import JobStatus
 from ..storage import load_job, save_job, update_job
 
@@ -93,14 +93,11 @@ async def download_task(
 
 
 async def _finish(redis, task_id: str, status: JobStatus, **fields) -> None:
-    job = await load_job(redis, task_id)
+    # update_job, not load/save: a progress callback can fire between the read
+    # and the write, and a plain save would revert the fields it set.
+    job = await update_job(redis, task_id, status=status, **fields)
     if job is None:
         return
-    job.status = status
-    for key, value in fields.items():
-        setattr(job, key, value)
-    job.updated_at = datetime.now(timezone.utc)
-    await save_job(redis, job)
     # Mirror the terminal state into SQLite, which outlives the Redis TTL.
     await record_job(job)
 
@@ -138,9 +135,19 @@ async def cleanup_expired_files(ctx: dict) -> int:
     return removed
 
 
+async def prune_history_task(ctx: dict) -> int:
+    """Hourly: apply the history retention caps. Separate from the file sweep so
+    a failure in one does not skip the other."""
+    return await prune_history()
+
+
 class WorkerSettings:
     functions = [download_task]
-    cron_jobs = [cron(cleanup_expired_files, minute=0)]
+    cron_jobs = [
+        cron(cleanup_expired_files, minute=0),
+        # Offset from the file sweep so the two do not contend for the DB lock.
+        cron(prune_history_task, minute=30),
+    ]
     redis_settings = settings.redis_settings
     max_jobs = settings.max_concurrent_jobs
     job_timeout = 60 * 60 * 2
