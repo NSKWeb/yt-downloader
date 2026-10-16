@@ -22,10 +22,12 @@ from .models import (
     JobState,
     JobStatus,
     StatusResponse,
+    ThemeInfo,
 )
 from .platforms import detect_platform, platform_catalog, platform_for_subdomain
 from .rate_limit import check_rate_limit
 from .storage import load_job, save_job
+from .themes import theme_catalog
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,6 +87,17 @@ async def health() -> dict:
 async def list_platforms() -> dict:
     """Describe the supported platforms and their options."""
     return {"platforms": platform_catalog()}
+
+
+@app.get("/api/themes", response_model=ThemeInfo)
+async def list_themes() -> ThemeInfo:
+    """Describe the selectable accent palettes.
+
+    Selection itself is per-browser: the frontend stores the chosen key in
+    localStorage and applies it via the [data-theme] attribute, because there
+    are no user accounts to hang a server-side preference on.
+    """
+    return theme_catalog()
 
 
 @app.post(

@@ -15,18 +15,26 @@
   --text: #e6edf3;
   --muted: #8b98a5;
 
-  /* Sky-blue accent. Two fill roles plus an ink, because a sky blue that
-     reads as text on --bg is far too light to carry white text:
-       --accent        link text, borders, progress fill   11.35:1 on --bg
-       --accent-solid  filled buttons / active tabs         sky-400
-       --accent-ink    text sitting on --accent-solid       6.97:1
-       --accent-hover  hover fill, still clears ink         5.39:1
-     Filled surfaces use dark ink, never white. White on any of these blues
-     tops out around 2:1. */
-  --accent: #7dd3fc;
-  --accent-solid: #38bdf8;
-  --accent-ink: #062a3d;
-  --accent-hover: #0ea5e9;
+  /* ---- Accent -------------------------------------------------------------
+     Four roles. A single colour cannot serve all of them, because an accent
+     light enough to read as text on --bg is too light to carry text when used
+     as a fill:
+       --accent        link text, borders, progress fill   reads on --bg
+       --accent-solid  filled buttons / active tabs        the fill itself
+       --accent-ink    text sitting on --accent-solid      dark, same hue
+       --accent-hover  hover fill, still clears --accent-ink
+
+     Filled surfaces always pair with dark ink; white on any of these light
+     accents tops out near 2:1.
+
+     The mauve accents below are the default. The three selectable palettes
+     live in [data-theme] blocks further down, and every rgba shadow is
+     expressed as --accent-rgb so nothing stays blue when a theme changes. */
+  --accent: #92A8D1;          /* Serenity — Pantone 15-3919   7.88:1 on --bg */
+  --accent-solid: #92A8D1;
+  --accent-ink: #0c1931;      /* 7.29:1 on --accent-solid                   */
+  --accent-hover: #a8b9da;    /* 8.85:1 with --accent-ink                   */
+  --accent-rgb: 146, 168, 209;
   --ok: #3fb950;
   --warn: #d29922;
 
@@ -66,11 +74,46 @@
   --shadow-2: 0 6px 20px -6px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.35);
 
   /* Focus ring and hero glow, both derived from the accent. */
-  --ring: 0 0 0 3px rgba(56, 189, 248, 0.4);
-  --glow: radial-gradient(60% 100% at 50% 0%, rgba(56, 189, 248, 0.16), transparent 70%);
+  --ring: 0 0 0 3px rgba(var(--accent-rgb), 0.4);
+  --glow: radial-gradient(60% 100% at 50% 0%, rgba(var(--accent-rgb), 0.16), transparent 70%);
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur: 0.18s;
+}
+
+/* ==========================================================================
+   Selectable accent palettes
+   Three finalists, each the brand colour used unchanged. Serenity is the
+   default, so :root and [data-theme="serenity"] carry the same values and the
+   page is correct even if the script never runs.
+
+   [data-theme] must sit on <html>, and set it before first paint (the inline
+   pre-paint snippet in each page's <head>) so there is no flash of the wrong
+   colour. Every ratio below is measured against --bg #0d1117.
+   ========================================================================== */
+
+[data-theme="serenity"] {
+  --accent: #92A8D1;        /* Pantone 15-3919 · 2016   7.88:1 */
+  --accent-solid: #92A8D1;
+  --accent-ink: #0c1931;    /* 7.29:1 on the fill              */
+  --accent-hover: #a8b9da;  /* 8.85:1 with the ink             */
+  --accent-rgb: 146, 168, 209;
+}
+
+[data-theme="cerulean"] {
+  --accent: #9BB7D4;        /* Pantone 15-4020 · 2000   9.12:1 */
+  --accent-solid: #9BB7D4;
+  --accent-ink: #0c1e31;    /* 8.12:1 on the fill              */
+  --accent-hover: #b0c6dd;  /* 9.61:1 with the ink             */
+  --accent-rgb: 155, 183, 212;
+}
+
+[data-theme="tiffany"] {
+  --accent: #81D8D0;        /* Tiffany & Co.           11.41:1 */
+  --accent-solid: #81D8D0;
+  --accent-ink: #083531;    /* 8.10:1 on the fill              */
+  --accent-hover: #98dfd9;  /* 8.88:1 with the ink             */
+  --accent-rgb: 129, 216, 208;
 }
 
 * { box-sizing: border-box; }
@@ -154,7 +197,7 @@ header.site .inner {
   border-radius: 4px;
   background: linear-gradient(140deg, var(--accent), var(--accent-solid));
   display: inline-block;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
 }
 
 nav.site { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -166,6 +209,63 @@ nav.site a {
   transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 nav.site a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+
+/* ---------- Mood / accent switcher ---------------------------------------
+   A segmented control, one button per palette. A colour swatch behind the
+   label shows the palette without relying on the name. */
+.mood {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.mood-label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.mood-swatches {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+.mood-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-3) 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.mood-btn:hover { color: var(--text); background: var(--surface-3); }
+.mood-btn .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.mood-btn[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  font-weight: 600;
+}
+/* The swatch is redundant once the button itself is the colour. */
+.mood-btn[aria-pressed="true"] .swatch { border-color: rgba(0, 0, 0, 0.25); }
 
 /* ---------- Hero ---------- */
 .hero {
@@ -323,7 +423,7 @@ select {
   background: var(--accent-solid);
   border-color: var(--accent-solid);
   color: var(--accent-ink);
-  box-shadow: 0 0 0 1px var(--accent-solid), 0 4px 14px -4px rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 1px var(--accent-solid), 0 4px 14px -4px rgba(var(--accent-rgb), 0.55);
 }
 
 /* ---------- Primary button ---------- */
@@ -344,12 +444,12 @@ select {
   font-family: inherit;
   cursor: pointer;
   margin-top: var(--sp-2);
-  box-shadow: 0 6px 18px -6px rgba(56, 189, 248, 0.6);
+  box-shadow: 0 6px 18px -6px rgba(var(--accent-rgb), 0.6);
   transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease),
     box-shadow var(--dur) var(--ease);
 }
 
-.btn-primary:hover:not(:disabled) { filter: brightness(1.07); box-shadow: 0 8px 22px -6px rgba(56, 189, 248, 0.7); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); box-shadow: 0 8px 22px -6px rgba(var(--accent-rgb), 0.7); }
 .btn-primary:active:not(:disabled) { transform: translateY(1px); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 
@@ -569,7 +669,7 @@ footer.site .links a:hover { color: var(--text); text-decoration: none; }
   border-radius: var(--radius-pill);
   border: 1px solid var(--accent);
   color: var(--accent);
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
   vertical-align: middle;
   margin-left: var(--sp-2);
   text-transform: none;

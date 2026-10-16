@@ -94,35 +94,56 @@ docker compose config --quiet   # validate before pushing
 
 ## README assets
 
-- **The accent palette is sky blue, and splits across four tokens.** Bright red
-  (`#ff0033`) vibrates on the dark background, reads as "error" on a primary
-  action, and measured only 3.96:1 against its own white button label — below
-  WCAG AA. The roles cannot share one variable: a sky blue light enough to read
-  as text on `--bg` is far too light for white text on top of it. So:
-  - `--accent: #7dd3fc` — text, borders, progress fill on dark (11.35:1)
-  - `--accent-solid: #38bdf8` — filled buttons and active tabs
-  - `--accent-ink: #062a3d` — the text on those filled surfaces (6.97:1)
-  - `--accent-hover: #0ea5e9` — hover fill, still clears the ink (5.39:1)
+- **The accent is selectable, and each palette splits across four tokens.**
+  Three palettes ship (`serenity`, `cerulean`, `tiffany`); the header's Mood
+  control switches between them and `localStorage["ytdl-accent"]` remembers the
+  choice. There are no user accounts, so nothing is stored server-side.
+  - `--accent` — text, borders, progress fill on dark
+  - `--accent-solid` — filled buttons and active tabs
+  - `--accent-ink` — the text on those filled surfaces
+  - `--accent-hover` — hover fill, still clears the ink
+  - `--accent-rgb` — the accent as an RGB triple, for the translucent shadows,
+    focus ring and hero glow. **A hex alone is not enough**: `rgba()` cannot be
+    built from a hex custom property, and hardcoding the numbers leaves the
+    shadows blue after a switch. Every `rgba()` tint in the stylesheet goes
+    through this token.
 
-  Filled surfaces use `--accent-ink`, **never** `#fff`; white on these blues is
-  about 2:1. The error alert keeps a red tint deliberately (`#3a1a20` on
-  `#ffc9d2`), because red is the right signal for an error and must stay
-  distinct from the accent. All colours live in `:root` in
-  `frontend/assets/style.css`, and `frontend/assets/favicon.ico` is a flat
-  `--accent-solid` square — no page or script hardcodes a colour, so the palette
-  is a one-file change. Changing it means recapturing the screenshots and
-  rewriting the favicon, since both bake in the colour.
+  The roles cannot share one variable. These accents are light, so they read as
+  text on `--bg` but cannot carry white text as a fill: filled surfaces use
+  `--accent-ink`, **never** `#fff` (white on any of them is about 2:1). All
+  three palettes clear WCAG AA on every role; the ratios are recorded in
+  `backend/app/themes.py` and asserted by `tests/test_themes.py`, which also
+  recomputes them from the hex values and checks the `[data-theme]` blocks in
+  `style.css` match `GET /api/themes`. That test is the guard: editing a colour
+  in one place without the other fails CI.
+
+  History, so it is not retried: bright red (`#ff0033`) vibrates on the dark
+  background, reads as "error" on a primary action, and measured only 3.96:1
+  against its own white button label. It went to a rose, then to sky blue, then
+  to the selectable set.
+
+  Colours live in the `:root` block plus one `[data-theme]` block per palette in
+  `frontend/assets/style.css`, mirrored in `backend/app/themes.py`. A small
+  inline snippet in each page's `<head>` applies the stored `[data-theme]`
+  before first paint so there is no flash of the wrong accent; keep that snippet
+  in sync when adding a palette. `frontend/assets/favicon.ico` is a flat
+  `--accent-solid` square, so adding a palette means recapturing the screenshots
+  and rewriting the favicon.
 - `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
   pipeline, platform matrix). They use only text, rects, lines and paths, so
   GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above
   and check text fits its box before committing — an SVG that overflows looks
   broken on the repo page and no linter catches it.
 - `docs/img/screenshot-*.png` are real captures of the running stack, taken with
-  headless Chromium over the DevTools Protocol. To reproduce, start the stack,
-  then drive `http://localhost:12000/` with CDP: `Page.navigate`,
+  headless Chromium over the DevTools Protocol at 1280x860 with
+  `deviceScaleFactor: 2`, so they land at 2560x1720. Keep that size; the README
+  lays them out side by side. To reproduce, serve the frontend (see the Redis
+  note below), then drive `http://127.0.0.1:12000/` with CDP: `Page.navigate`,
   `Runtime.evaluate` to set the URL input and dispatch `input`/`change`, click
-  `#submit`, and `Page.captureScreenshot`. Do not hand-write these; a stale
-  screenshot is worse than none.
+  `#submit`, and `Page.captureScreenshot`. The mode toggle's buttons are built by
+  `app.js` and carry no `data-mode` attribute, so select them by index
+  (`#mode-toggle button`[1] is Audio) rather than by attribute. Do not hand-write
+  these; a stale screenshot is worse than none.
 - Markdown payloads in the README were captured from the live API, not invented.
   Re-capture them if the response models change.
 
@@ -158,7 +179,17 @@ been.
   The `ghu_` app token itself has no write permission on any repo; a 403 from it
   is expected and does not mean the repo or the push URL is wrong.
 - Python 3.13 locally, 3.12 in the Docker image
-- FFmpeg, aria2c, and redis-server are installed in the dev container
+- FFmpeg and aria2c are installed. **`redis-server` is not**, contrary to what
+  this file used to claim, and `dockerd` needs root so the compose stack cannot
+  be brought up either. Redis-dependent tests still run, because
+  `tests/test_api.py` injects an in-memory stub instead of opening a real pool.
+  For screenshots, the same trick serves the real API: mount
+  `frontend/` with `StaticFiles` and replace `app.state.redis` with that stub
+  *before* `uvicorn.run`, and swap `app.router.lifespan_context` for a no-op so
+  the ARQ pool is never opened. An `enqueue_job` stub that writes a terminal
+  `JobState` is enough to photograph the completed-progress state through the
+  genuine `/ws/progress` route. Never add a Redis dependency to the app to work
+  around a sandbox gap.
 - Datacenter IPs get refused by YouTube ("Sign in to confirm you're not a bot").
   This is expected and is not a bug in this code.
 - In this sandbox, the Docker network cannot complete a TLS handshake to some

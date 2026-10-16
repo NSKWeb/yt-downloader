@@ -7,6 +7,8 @@
 <meta name="description" content="How yt-downloader uses cookies and local storage.">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="stylesheet" href="/assets/style.css">
+<script>/* palette before first paint, so there is no flash of the wrong accent */try{var t=localStorage.getItem("ytdl-accent");if(t==="serenity"||t==="cerulean"||t==="tiffany"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
+<script src="/assets/theme.js" defer></script>
 </head>
 <body>
 
@@ -19,6 +21,10 @@
       <a href="/about.html">About</a>
       <a href="/contact.html">Contact</a>
     </nav>
+    <div class="mood" data-mood>
+      <span class="mood-label">Mood</span>
+      <div class="mood-swatches" role="group" aria-label="Accent colour"></div>
+    </div>
   </div>
 </header>
 

@@ -138,6 +138,35 @@ class StatusResponse(BaseModel):
     error: str | None = None
 
 
+class AccentPalette(BaseModel):
+    """One selectable accent palette.
+
+    Colours are carried as hex strings; the frontend writes them straight into
+    the four CSS custom properties. ``contrast_*`` are the measured WCAG ratios
+    against the dark page (#0d1117) and the fill, so the caller can see at a
+    glance that a palette was checked rather than picked by eye.
+    """
+
+    key: str
+    name: str
+    source: str
+    accent: str
+    accent_solid: str
+    accent_ink: str
+    accent_hover: str
+    contrast_accent: float
+    contrast_solid: float
+    contrast_hover: float
+
+
+class ThemeInfo(BaseModel):
+    """The palette catalogue: which themes exist and which is the default."""
+
+    default: str
+    storage_key: str
+    themes: list[AccentPalette] = Field(default_factory=list)
+
+
 class InfoResponse(BaseModel):
     title: str | None = None
     uploader: str | None = None

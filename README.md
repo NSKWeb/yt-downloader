@@ -71,34 +71,64 @@ direct link to `/api/file/{task_id}`.*
 
 ## Colour and accessibility
 
-The accent is a sky blue. It has been through two revisions — a saturated red
-(`#ff0033`), then a rose — because bright red on a dark surface is uncomfortable
-to look at for long, and it reads as "error", which is the wrong signal for an
-ordinary primary action.
+The accent is selectable. Three palettes ship, each the brand colour used
+unchanged, and the header carries a **Mood** control to switch between them:
 
-A sky blue light enough to read as text on the dark background is far too light
-to carry white text, so the palette splits the roles:
+| Key | Name | Hex | Source |
+|-----|------|-----|--------|
+| `serenity` | Serenity | `#92A8D1` | Pantone 15-3919 · Colour of the Year 2016 *(default)* |
+| `cerulean` | Cerulean | `#9BB7D4` | Pantone 15-4020 · Colour of the Year 2000 |
+| `tiffany` | Tiffany Blue | `#81D8D0` | Tiffany & Co. |
 
-| Token | Value | Used for | Contrast |
-|-------|-------|----------|----------|
-| `--accent` | `#7dd3fc` | Link text, borders, progress fill, chips | 11.35:1 on `--bg` |
-| `--accent-solid` | `#38bdf8` | Filled buttons and active tabs | — |
-| `--accent-ink` | `#062a3d` | Text on `--accent-solid` | 6.97:1 |
-| `--accent-hover` | `#0ea5e9` | Hover fill for those buttons | 5.39:1 with the ink |
+Selection is per-browser: the choice is stored in `localStorage` under
+`ytdl-accent` and applied as `[data-theme]` on `<html>`. There are no user
+accounts, so there is no server-side preference to keep. A small inline snippet
+in each page's `<head>` applies the stored value before first paint, so the page
+never flashes the wrong accent.
 
-Filled surfaces use the dark ink, never white: white on any of these blues
-measures about 2:1, far below the WCAG AA threshold of 4.5:1. The original red
-was not only harsh, it also failed at 3.96:1 against its own white button label.
-Every value above clears AA.
+The brand colour has been through three epochs — a saturated red (`#ff0033`),
+then a rose, then sky blue. Bright red on a dark surface is uncomfortable to
+look at for long and reads as "error", the wrong signal for an ordinary primary
+action.
+
+### One colour, four roles
+
+An accent light enough to read as text on the dark background is far too light
+to carry text when used as a fill, so each palette splits into four tokens:
+
+| Token | Role | Serenity | Cerulean | Tiffany |
+|-------|------|----------|----------|---------|
+| `--accent` | Link text, borders, progress fill, chips | `#92A8D1` | `#9BB7D4` | `#81D8D0` |
+| `--accent-solid` | Filled buttons and active tabs | `#92A8D1` | `#9BB7D4` | `#81D8D0` |
+| `--accent-ink` | Text on `--accent-solid` | `#0c1931` | `#0c1e31` | `#083531` |
+| `--accent-hover` | Hover fill for those buttons | `#a8b9da` | `#b0c6dd` | `#98dfd9` |
+| `--accent-rgb` | The accent as an RGB triple, for `rgba()` tints | `146, 168, 209` | `155, 183, 212` | `129, 216, 208` |
+
+Filled surfaces always use the dark ink, never white: white on any of these
+accents measures about 2:1, far below the WCAG AA threshold of 4.5:1.
+
+| Palette | `--accent` on `--bg` | ink on fill | ink on hover |
+|---------|----------------------|-------------|--------------|
+| Serenity | 7.88:1 | 7.29:1 | 8.85:1 |
+| Cerulean | 9.12:1 | 8.12:1 | 9.61:1 |
+| Tiffany Blue | 11.41:1 | 8.10:1 | 8.88:1 |
+
+Every value clears AA. `--accent-rgb` exists because shadows, the focus ring and
+the hero glow need a translucent tint of the accent — with a hex alone they
+would stay blue after a switch.
+
+`backend/tests/test_themes.py` recomputes these ratios from the hex values and
+cross-checks the `[data-theme]` blocks in the stylesheet against
+`GET /api/themes`, so a hand-edited colour or ratio cannot drift silently.
 
 The error alert keeps a red tint on purpose, because red is the correct signal
 for an error (`#3a1a20` on `#ffc9d2`, 10.78:1). It is deliberately distinct from
-the blue accent.
+every accent.
 
-All colours live in the `:root` block of `frontend/assets/style.css`, and the
-favicon uses `--accent-solid`. Change them there; no page or script hardcodes a
-colour. Because the screenshots show the UI, changing the palette means
-recapturing them.
+Accent colours live in `frontend/assets/style.css` (the `:root` block plus one
+`[data-theme]` block per palette) and are mirrored in `backend/app/themes.py`.
+The favicon bakes in `--accent-solid`. Because the screenshots show the UI,
+changing a palette means recapturing them.
 
 ### Design tokens
 
@@ -307,6 +337,7 @@ curl -X POST http://localhost:12000/api/download \
 |--------|------|---------|
 | GET | `/api/health` | Liveness check |
 | GET | `/api/platforms` | Supported platforms and their options |
+| GET | `/api/themes` | Selectable accent palettes and their contrast ratios |
 | POST | `/api/download` | Queue a download |
 | GET | `/api/status/{task_id}` | Progress, speed, ETA, status |
 | GET | `/api/file/{task_id}` | Download the finished file |
