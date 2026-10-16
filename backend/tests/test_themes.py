@@ -10,9 +10,10 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
-from app.themes import DEFAULT_THEME, THEMES, theme_for_key
+from app.themes import DEFAULT_THEME, THEMES, theme_catalog, theme_for_key
 
 STYLE_CSS = Path(__file__).resolve().parents[2] / "frontend" / "assets" / "style.css"
+THEME_JS = Path(__file__).resolve().parents[2] / "frontend" / "assets" / "theme.js"
 
 
 @pytest.fixture
@@ -135,3 +136,48 @@ def test_root_default_matches_the_default_theme():
     default = theme_for_key(DEFAULT_THEME)
     assert default is not None, f"DEFAULT_THEME {DEFAULT_THEME!r} is not a theme"
     _assert_block_matches(blocks["__root__"], default, f":root (default {DEFAULT_THEME})")
+
+
+def test_switcher_palettes_match_the_api_catalogue():
+    """theme.js is what actually decides the colour, and nothing else checked it.
+
+    It carries its own copy of the palette list -- it has to, because the
+    pre-paint snippet runs before any fetch -- so this is the third place a
+    palette is written down, after the stylesheet and app/themes.py. A hex or a
+    key edited here alone would change what users see while every other check
+    still passed.
+    """
+    js = THEME_JS.read_text(encoding="utf-8")
+    entries = re.findall(
+        r'\{\s*key:\s*"([^"]+)"\s*,\s*hex:\s*"(#[0-9A-Fa-f]{6})"\s*,\s*name:\s*"([^"]+)"',
+        js,
+    )
+    assert entries, "no PALETTES entries found in theme.js"
+
+    assert [k for k, _, _ in entries] == [t.key for t in THEMES], "palette order/keys"
+    by_key = {t.key: t for t in THEMES}
+    for key, hexval, name in entries:
+        theme = by_key[key]
+        assert hexval.lower() == theme.accent.lower(), f"{key}: theme.js hex"
+        assert name == theme.name, f"{key}: theme.js display name"
+
+    default = re.search(r'var\s+DEFAULT_KEY\s*=\s*"([^"]+)"', js)
+    assert default is not None, "no DEFAULT_KEY in theme.js"
+    assert default.group(1) == DEFAULT_THEME, "theme.js default != API default"
+
+    storage = re.search(r'var\s+STORAGE_KEY\s*=\s*"([^"]+)"', js)
+    assert storage is not None, "no STORAGE_KEY in theme.js"
+    assert storage.group(1) == theme_catalog().storage_key, "theme.js storage key"
+
+
+def test_every_page_applies_the_theme_before_first_paint():
+    """Without the inline snippet a returning visitor sees the default flash."""
+    pages = sorted((STYLE_CSS.parents[1]).glob("*.html"))
+    assert pages, "no HTML pages found"
+
+    for page in pages:
+        html = page.read_text(encoding="utf-8")
+        assert 'localStorage.getItem("ytdl-accent")' in html, f"{page.name}: no pre-paint read"
+        assert "setAttribute(\"data-theme\"" in html, f"{page.name}: does not set data-theme"
+        assert "theme.js" in html, f"{page.name}: theme.js not included"
+        assert "data-mood" in html, f"{page.name}: no mood control mount point"

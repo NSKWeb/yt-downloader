@@ -130,6 +130,28 @@ docker compose config --quiet   # validate before pushing
   in sync when adding a palette. `frontend/assets/favicon.ico` is a flat
   `--accent-solid` square, so adding a palette means recapturing the screenshots
   and rewriting the favicon.
+
+  **The palette is written down in three places, and the frontend is the one
+  that decides.** `frontend/assets/theme.js` carries its own `PALETTES` array,
+  which is a real duplication rather than an oversight: the pre-paint snippet
+  must resolve the stored accent synchronously, before any fetch can return.
+  `tests/test_themes.py` therefore cross-checks all three -- the stylesheet,
+  `app/themes.py` and `theme.js` -- plus the wiring of every page, so a hex, key,
+  name, default or storage key edited in one place alone fails CI.
+
+  Do not move the default to the backend. It is tempting, but the frontend is
+  static HTML behind nginx (only `/api` and `/ws` reach FastAPI), so the backend
+  cannot inject into the page and a server-supplied default would have to arrive
+  by fetch -- after first paint, which is exactly the flash the inline snippet
+  exists to prevent. A backend round-trip would buy a runtime cost and a flash in
+  exchange for deduplicating three lists that a test already keeps honest. If a
+  server-side override is ever genuinely needed, the flash-free shape is a tiny
+  `:root{...}` stylesheet served from the API and linked in `<head>` (which
+  requires making the palette selectors `html[data-theme="..."]` so a stored
+  preference still wins on specificity) -- not a config value the JS fetches.
+  There is also no admin or auth mechanism anywhere in the backend, so a runtime
+  "set the mood for everyone" endpoint would mean inventing one; see the scope
+  boundary below.
 - `docs/img/*.svg` are hand-written diagrams (architecture, request flow, format
   pipeline, platform matrix). They use only text, rects, lines and paths, so
   GitHub renders them without a rasteriser. Keep `font-size` at 11.5px or above
