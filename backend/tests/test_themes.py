@@ -80,23 +80,58 @@ def test_metrics_match_recomputed_contrast():
         assert abs(ratio(t.accent_ink, t.accent_hover) - t.contrast_hover) < 0.05, t.key
 
 
-def test_css_blocks_match_the_api_catalogue():
-    """The API is a mirror of the stylesheet, so they must not drift apart."""
+def _css_blocks(css: str) -> dict[str, str]:
+    """The accent declarations for :root plus every [data-theme] block."""
+    blocks = {}
+    root = re.search(r":root\s*\{(.*?)\}", css, re.S)
+    assert root is not None, "no :root block in style.css"
+    blocks["__root__"] = root.group(1)
+    for m in re.finditer(r'\[data-theme="([^"]+)"\]\s*\{(.*?)\}', css, re.S):
+        blocks[m.group(1)] = m.group(2)
+    return blocks
+
+
+def _assert_block_matches(block: str, theme, scope: str) -> None:
+    """Assert one CSS block declares this theme's four roles and RGB triple."""
+
+    def token(key):
+        m = re.search(r"--" + key + r":\s*(#[0-9A-Fa-f]{6})", block)
+        assert m is not None, f"--{key} missing for {scope}"
+        return m.group(1).lower()
+
+    assert token("accent") == theme.accent.lower(), scope
+    assert token("accent-solid") == theme.accent_solid.lower(), scope
+    assert token("accent-ink") == theme.accent_ink.lower(), scope
+    assert token("accent-hover") == theme.accent_hover.lower(), scope
+
+    # --accent-rgb is what the focus ring, the glow and every shadow are built
+    # from, so a stale triple leaves those tints the old colour even though the
+    # four hex roles are correct.
+    rgb = re.search(r"--accent-rgb:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", block)
+    assert rgb is not None, f"--accent-rgb missing for {scope}"
+    got = "#%02X%02X%02X" % tuple(int(g) for g in rgb.groups())
+    assert got.lower() == theme.accent.lower(), f"{scope}: --accent-rgb is {got}"
+
+
+def test_css_theme_blocks_match_the_api_catalogue():
+    """Each [data-theme] block must declare its own palette, not a stale one."""
     css = STYLE_CSS.read_text(encoding="utf-8")
+    blocks = _css_blocks(css)
 
     for t in THEMES:
-        block = re.search(
-            r'\[data-theme="' + t.key + r'"\]\s*\{(.*?)\}', css, re.S
-        )
+        block = blocks.get(t.key)
         assert block is not None, f"no [data-theme={t.key}] block in style.css"
-        body = block.group(1)
+        _assert_block_matches(block, t, t.key)
 
-        def token(name):
-            m = re.search(r"--" + name + r":\s*(#[0-9A-Fa-f]{6})", body)
-            assert m is not None, f"--{name} missing for {t.key}"
-            return m.group(1).lower()
 
-        assert token("accent") == t.accent.lower(), t.key
-        assert token("accent-solid") == t.accent_solid.lower(), t.key
-        assert token("accent-ink") == t.accent_ink.lower(), t.key
-        assert token("accent-hover") == t.accent_hover.lower(), t.key
+def test_root_default_matches_the_default_theme():
+    """`:root` is the unthemed fallback, so it must be the default palette.
+
+    Checking only the [data-theme] blocks would miss an edit here, and this is
+    what a visitor sees before a theme is applied (and what a browser with
+    localStorage disabled never leaves).
+    """
+    blocks = _css_blocks(STYLE_CSS.read_text(encoding="utf-8"))
+    default = theme_for_key(DEFAULT_THEME)
+    assert default is not None, f"DEFAULT_THEME {DEFAULT_THEME!r} is not a theme"
+    _assert_block_matches(blocks["__root__"], default, f":root (default {DEFAULT_THEME})")
