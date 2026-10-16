@@ -95,9 +95,12 @@ docker compose config --quiet   # validate before pushing
 ## README assets
 
 - **Two appearance preferences ship: accent and light/dark mode.**
-  - Accent: three palettes (`serenity`, `cerulean`, `tiffany`), chosen from a
+  - Accent: three palettes (`serenity`, `illuminating`, `tiffany`), chosen from a
     picker in the **footer**. Stored in `localStorage["ytdl-accent"]`, applied
-    as `[data-theme]`.
+    as `[data-theme]`. The three are deliberately far apart in hue — a choice
+    between three near-identical blues reads as no choice at all. If a palette
+    is ever swapped, keep every pair at least 25 apart in CIELAB;
+    `test_swatches_are_distinguishable_by_eye` enforces it.
   - Mode: `dark` (default) or `light`, chosen from a toggle at the **top right
     of the header**. Stored in `localStorage["ytdl-mode"]`, applied as
     `[data-mode]`. An unset mode follows the OS via `prefers-color-scheme`.

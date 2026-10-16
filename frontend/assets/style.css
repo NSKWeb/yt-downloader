@@ -126,12 +126,12 @@ html[data-theme="serenity"] {
   --accent-rgb: 146, 168, 209;
 }
 
-html[data-theme="cerulean"] {
-  --accent: #9BB7D4;        /* Pantone 15-4020 · 2000   9.12:1 */
-  --accent-solid: #9BB7D4;
-  --accent-ink: #0c1e31;    /* 8.12:1 on the fill              */
-  --accent-hover: #b0c6dd;  /* 9.61:1 with the ink             */
-  --accent-rgb: 155, 183, 212;
+html[data-theme="illuminating"] {
+  --accent: #F5DF4D;        /* Pantone 13-0647 · 2021  14.01:1 */
+  --accent-solid: #F5DF4D;
+  --accent-ink: #333004;    /* 9.93:1 on the fill              */
+  --accent-hover: #f8e77c;  /* 10.68:1 with the ink            */
+  --accent-rgb: 245, 223, 77;
 }
 
 html[data-theme="tiffany"] {
@@ -203,9 +203,9 @@ html[data-mode="light"][data-theme="serenity"] {
   --accent-rgb: 96, 111, 138;
   --ring: 0 0 0 3px var(--accent);
 }
-html[data-mode="light"][data-theme="cerulean"] {
-  --accent: #5F7081;        /* 4.79:1 on --bg */
-  --accent-rgb: 95, 112, 129;
+html[data-mode="light"][data-theme="illuminating"] {
+  --accent: #6f620a;        /* 5.76:1 on --bg */
+  --accent-rgb: 111, 98, 10;
   --ring: 0 0 0 3px var(--accent);
 }
 html[data-mode="light"][data-theme="tiffany"] {

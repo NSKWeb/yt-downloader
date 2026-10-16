@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+import math
 import re
 from pathlib import Path
 
@@ -61,19 +63,52 @@ def test_theme_catalog_lists_three_finalists(client):
     assert body["modes"] == ["dark", "light"]
     assert body["surfaces"] == {"dark": "#0d1117", "light": "#f6f8fa"}
     keys = [t["key"] for t in body["themes"]]
-    assert keys == ["serenity", "cerulean", "tiffany"]
+    assert keys == ["serenity", "illuminating", "tiffany"]
 
 
 def test_palette_carries_the_brand_colours():
     by_key = {t.key: t for t in THEMES}
 
-    assert by_key["serenity"].accent == "#92A8D1"   # Pantone 15-3919
-    assert by_key["cerulean"].accent == "#9BB7D4"   # Pantone 15-4020
-    assert by_key["tiffany"].accent == "#81D8D0"    # Tiffany & Co.
+    assert by_key["serenity"].accent == "#92A8D1"      # Pantone 15-3919
+    assert by_key["illuminating"].accent == "#F5DF4D"  # Pantone 13-0647
+    assert by_key["tiffany"].accent == "#81D8D0"       # Tiffany & Co.
 
 
 def test_default_theme_exists():
     assert theme_for_key(DEFAULT_THEME) is not None
+
+
+def test_swatches_are_distinguishable_by_eye():
+    """Three near-identical blues made the picker look like it had two options.
+
+    Serenity and the palette that used to sit beside it were both pale blues,
+    8.8 apart in CIELAB -- close enough that the swatch row read as two
+    colours rather than three, which defeats the point of offering a choice.
+    This keeps every pair far enough apart to be told apart at swatch size.
+
+    Distance is plain Euclidean CIELAB (CIE76): crude next to CIEDE2000, but it
+    needs no colour-science dependency and the threshold carries a wide margin.
+    """
+    def to_lab(h: str) -> tuple[float, float, float]:
+        h = h.lstrip("#")
+        r, g, b = (_lin(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+        x = r * 0.4124 + g * 0.3576 + b * 0.1805
+        y = r * 0.2126 + g * 0.7152 + b * 0.0722
+        z = r * 0.0193 + g * 0.1192 + b * 0.9505
+        xn, yn, zn = 0.95047, 1.0, 1.08883
+
+        def f(t: float) -> float:
+            return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+
+        fx, fy, fz = f(x / xn), f(y / yn), f(z / zn)
+        return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+    for a, b in itertools.combinations(THEMES, 2):
+        dist = math.dist(to_lab(a.accent), to_lab(b.accent))
+        assert dist >= 25, (
+            f"{a.key} and {b.key} are only {dist:.1f} apart in CIELAB; "
+            f"at swatch size they read as the same colour"
+        )
 
 
 def test_unknown_theme_returns_none():

@@ -88,7 +88,7 @@ Three palettes ship, each the brand colour used unchanged:
 | Key | Name | Hex | Source |
 |-----|------|-----|--------|
 | `serenity` | Serenity | `#92A8D1` | Pantone 15-3919 · Colour of the Year 2016 *(default)* |
-| `cerulean` | Cerulean | `#9BB7D4` | Pantone 15-4020 · Colour of the Year 2000 |
+| `illuminating` | Illuminating | `#F5DF4D` | Pantone 13-0647 · Colour of the Year 2021 |
 | `tiffany` | Tiffany Blue | `#81D8D0` | Tiffany & Co. |
 
 The choice is stored under `ytdl-accent` and applied as `[data-theme]`.
@@ -103,13 +103,13 @@ action.
 An accent light enough to read as text on the dark background is far too light
 to carry text when used as a fill, so each palette splits into four tokens:
 
-| Token | Role | Serenity | Cerulean | Tiffany |
-|-------|------|----------|----------|---------|
-| `--accent` | Link text, borders, progress fill, chips | `#92A8D1` | `#9BB7D4` | `#81D8D0` |
-| `--accent-solid` | Filled buttons and active tabs | `#92A8D1` | `#9BB7D4` | `#81D8D0` |
-| `--accent-ink` | Text on `--accent-solid` | `#0c1931` | `#0c1e31` | `#083531` |
-| `--accent-hover` | Hover fill for those buttons | `#a8b9da` | `#b0c6dd` | `#98dfd9` |
-| `--accent-rgb` | The accent as an RGB triple, for `rgba()` tints | `146, 168, 209` | `155, 183, 212` | `129, 216, 208` |
+| Token | Role | Serenity | Illuminating | Tiffany |
+|-------|------|----------|--------------|---------|
+| `--accent` | Link text, borders, progress fill, chips | `#92A8D1` | `#F5DF4D` | `#81D8D0` |
+| `--accent-solid` | Filled buttons and active tabs | `#92A8D1` | `#F5DF4D` | `#81D8D0` |
+| `--accent-ink` | Text on `--accent-solid` | `#0c1931` | `#333004` | `#083531` |
+| `--accent-hover` | Hover fill for those buttons | `#a8b9da` | `#f8e77c` | `#98dfd9` |
+| `--accent-rgb` | The accent as an RGB triple, for `rgba()` tints | `146, 168, 209` | `245, 223, 77` | `129, 216, 208` |
 
 Filled surfaces always use the dark ink, never white: white on any of these
 accents measures about 2:1, far below the WCAG AA threshold of 4.5:1.
@@ -117,7 +117,7 @@ accents measures about 2:1, far below the WCAG AA threshold of 4.5:1.
 | Palette | `--accent` on `--bg` | ink on fill | ink on hover |
 |---------|----------------------|-------------|--------------|
 | Serenity | 7.88:1 | 7.29:1 | 8.85:1 |
-| Cerulean | 9.12:1 | 8.12:1 | 9.61:1 |
+| Illuminating | 14.01:1 | 9.93:1 | 10.68:1 |
 | Tiffany Blue | 11.41:1 | 8.10:1 | 8.88:1 |
 
 Every value clears AA. `--accent-rgb` exists because shadows, the focus ring and
@@ -132,12 +132,12 @@ preference follows the OS via `prefers-color-scheme`. The mode is stored under
 
 Only one role changes between modes. `--accent` is measured against `--bg`, and
 `--bg` is what the mode swaps, so on the light page all three brand colours drop
-to 1.5–2.3:1 and need a darker sibling:
+to 1.3–2.3:1 and need a darker sibling:
 
 | Palette | Dark `--accent` | Light `--accent` | Light `--accent` on `--bg` |
 |---------|-----------------|------------------|----------------------------|
 | Serenity | `#92A8D1` | `#606F8A` | 4.77:1 |
-| Cerulean | `#9BB7D4` | `#5F7081` | 4.79:1 |
+| Illuminating | `#F5DF4D` | `#6f620a` | 5.76:1 |
 | Tiffany Blue | `#81D8D0` | `#477772` | 4.75:1 |
 
 The fill roles do **not** change. A filled button keeps the dark ink on the

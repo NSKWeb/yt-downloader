@@ -29,7 +29,7 @@
   /* hex is the swatch shown in the picker; key matches a CSS block. */
   var PALETTES = [
     { key: "serenity", hex: "#92A8D1", name: "Serenity",      source: "Pantone 15-3919" },
-    { key: "cerulean", hex: "#9BB7D4", name: "Cerulean",      source: "Pantone 15-4020" },
+    { key: "illuminating", hex: "#F5DF4D", name: "Illuminating",  source: "Pantone 13-0647" },
     { key: "tiffany",  hex: "#81D8D0", name: "Tiffany Blue",  source: "Tiffany & Co." }
   ];
 
