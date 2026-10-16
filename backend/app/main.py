@@ -241,7 +241,15 @@ async def ws_progress(websocket: WebSocket, task_id: str):
 
 @app.get("/api/info", response_model=InfoResponse)
 async def get_info(url: str) -> InfoResponse:
-    """Metadata preview. Never raises for a bad URL; returns an empty payload."""
+    """Metadata preview. Never raises for a bad URL; returns an empty payload.
+
+    The URL is put through the same platform allowlist as /api/download before
+    it reaches yt-dlp. Without that check a caller could hand yt-dlp any host —
+    including loopback and link-local addresses — and read the response back
+    through `webpage_url`, turning this into an SSRF probe.
+    """
+    if detect_platform(url) is None:
+        raise HTTPException(status_code=422, detail="Could not read metadata for that URL")
     data = await probe_info(url)
     if not data:
         raise HTTPException(status_code=422, detail="Could not read metadata for that URL")

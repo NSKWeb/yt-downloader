@@ -389,3 +389,48 @@ class TestHistoryEndpoints:
         r = client.get("/api/info?url=https://youtu.be/abc")
         assert r.status_code == 200
         assert r.json()["duration"] is None
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://127.0.0.1:8000/api/health",
+            "http://localhost:6379/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]:8000/",
+            "http://10.0.0.5/internal",
+            "https://example.com/video",
+            "file:///etc/passwd",
+            "https://youtube.com.evil.com/watch?v=x",
+        ],
+    )
+    def test_info_rejects_hosts_outside_the_allowlist(self, client, monkeypatch, url):
+        """The URL must clear the platform allowlist before it reaches yt-dlp.
+
+        Otherwise a caller can point the probe at loopback or a cloud metadata
+        address and read the response back through webpage_url.
+        """
+        from app import main
+
+        probed = []
+
+        async def fake_probe(target):
+            probed.append(target)
+            return {"title": "reached", "webpage_url": target}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info", params={"url": url})
+
+        assert r.status_code == 422
+        assert probed == [], "yt-dlp must never be invoked for a blocked host"
+
+    def test_info_still_accepts_an_allowlisted_host(self, client, monkeypatch):
+        from app import main
+
+        async def fake_probe(target):
+            return {"title": "Fine", "formats": []}
+
+        monkeypatch.setattr(main, "probe_info", fake_probe)
+        r = client.get("/api/info?url=https://www.youtube.com/watch?v=abc")
+        assert r.status_code == 200
+        assert r.json()["title"] == "Fine"
+

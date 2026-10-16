@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 10
     rate_limit_per_hour: int = 100
+    # Comma-separated CIDRs of reverse proxies whose X-Forwarded-For may be
+    # trusted. Empty means "trust loopback and private peers only", which is
+    # correct when the API is not itself reachable from the internet.
+    trusted_proxies: str = ""
 
     # Download history (SQLite). Left unset, the database lives beside the
     # downloads so that overriding download_dir does not silently break history.
@@ -61,6 +65,10 @@ class Settings(BaseSettings):
     @property
     def platform_subdomain_list(self) -> list[str]:
         return [p.strip() for p in self.platform_subdomains.split(",") if p.strip()]
+
+    @property
+    def trusted_proxy_list(self) -> list[str]:
+        return [p.strip() for p in self.trusted_proxies.split(",") if p.strip()]
 
     @property
     def history_db_path(self) -> Path:

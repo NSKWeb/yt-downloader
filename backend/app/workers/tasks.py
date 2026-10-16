@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 from arq import cron
 
@@ -110,12 +111,22 @@ async def cleanup_expired_files(ctx: dict) -> int:
     if not directory.exists():
         return 0
 
+    # The SQLite history database defaults to a path inside the download
+    # directory and is idle whenever no job is running, so a naive sweep
+    # deletes it after FILE_TTL_SECONDS and silently wipes the history.
+    protected = {settings.history_db_path.resolve()}
+    # WAL mode also keeps -wal and -shm siblings beside the database.
+    protected |= {Path(f"{p}-wal") for p in protected}
+    protected |= {Path(f"{p}-shm") for p in protected}
+
     cutoff = time.time() - settings.file_ttl_seconds
     removed = 0
     for entry in directory.iterdir():
         if not entry.is_file():
             continue
         try:
+            if entry.resolve() in protected:
+                continue
             if entry.stat().st_mtime < cutoff:
                 entry.unlink()
                 removed += 1

@@ -100,6 +100,25 @@ docker compose config --quiet   # validate before pushing
   instead of their video. `_pick_media_file` now takes only known media
   extensions and, since `since`, only files written during this run. If you
   touch that fallback, keep both guards and the `TestOutputPicker` tests.
+- **Every URL that reaches yt-dlp goes through the platform allowlist.**
+  `DownloadRequest.validate_url` enforces it for `/api/download`, and
+  `/api/info` calls `detect_platform` itself before `probe_info`. That second
+  check is load-bearing: `probe_info` returns yt-dlp's JSON, and `webpage_url`
+  echoes the target back, so an unvalidated `/api/info` is an SSRF probe. It
+  reached `http://127.0.0.1:12000/api/themes` and returned the body. A new
+  route that accepts a URL needs the same guard; `test_info_rejects_hosts_outside_the_allowlist`
+  is the pattern.
+- **`X-Forwarded-For` is only believed from a trusted peer.** `client_key`
+  returns the rightmost hop it can vouch for, and only when
+  `request.client.host` is loopback/RFC1918 or matches `TRUSTED_PROXIES`.
+  Trusting the header unconditionally let any caller mint a fresh rate-limit
+  bucket per request, so the limiter never fired. `TRUSTED_PROXIES` exists for
+  the case where the edge proxy is not on a private address.
+- **The cleanup cron must not delete the history database.** `history_db_path`
+  defaults to `download_dir/history.db`, which is exactly what
+  `cleanup_expired_files` sweeps, and the file is idle between jobs — so it was
+  deleted one TTL after the last download. The job now skips the configured
+  database and its `-wal`/`-shm` siblings.
 
 ## README assets
 

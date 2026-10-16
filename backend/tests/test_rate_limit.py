@@ -60,7 +60,8 @@ class FakeRedis:
 
 
 class FakeClient:
-    host = "1.2.3.4"
+    def __init__(self, host="1.2.3.4"):
+        self.host = host
 
 
 class FakeRequest:
@@ -84,9 +85,11 @@ def limited(monkeypatch):
 
 
 class TestClientKey:
-    def test_prefers_x_forwarded_for(self):
-        req = FakeRequest(headers={"x-forwarded-for": "9.9.9.9, 10.0.0.1"})
-        assert rate_limit.client_key(req) == "9.9.9.9"
+    def test_trusts_x_forwarded_for_from_a_proxy(self):
+        # 203.0.113.7 is the real client; the private hop is our own nginx.
+        req = FakeRequest(headers={"x-forwarded-for": "203.0.113.7, 172.18.0.5"})
+        req.client = FakeClient(host="172.18.0.5")
+        assert rate_limit.client_key(req) == "203.0.113.7"
 
     def test_falls_back_to_socket_address(self):
         assert rate_limit.client_key(FakeRequest()) == "1.2.3.4"
@@ -95,6 +98,31 @@ class TestClientKey:
         req = FakeRequest()
         req.client = None
         assert rate_limit.client_key(req) == "unknown"
+
+    def test_ignores_spoofed_x_forwarded_for_from_untrusted_peer(self):
+        """A direct caller must not be able to pick its own rate-limit bucket."""
+        req = FakeRequest(headers={"x-forwarded-for": "9.9.9.9"})
+        req.client = FakeClient(host="203.0.113.9")
+        assert rate_limit.client_key(req) == "203.0.113.9"
+
+    def test_spoofed_prefix_is_discarded_behind_a_proxy(self):
+        """Only the hop our trusted proxy wrote counts, not the client's prefix."""
+        req = FakeRequest(
+            headers={"x-forwarded-for": "1.2.3.4, 203.0.113.7, 10.0.0.9"}
+        )
+        req.client = FakeClient(host="10.0.0.9")
+        assert rate_limit.client_key(req) == "203.0.113.7"
+
+    def test_all_trusted_hops_fall_back_to_peer(self):
+        req = FakeRequest(headers={"x-forwarded-for": "10.0.0.1, 10.0.0.2"})
+        req.client = FakeClient(host="10.0.0.2")
+        assert rate_limit.client_key(req) == "10.0.0.2"
+
+    def test_configured_trusted_proxy_is_honoured(self, monkeypatch):
+        monkeypatch.setattr(settings, "trusted_proxies", "198.51.100.0/24")
+        req = FakeRequest(headers={"x-forwarded-for": "203.0.113.7"})
+        req.client = FakeClient(host="198.51.100.4")
+        assert rate_limit.client_key(req) == "203.0.113.7"
 
 
 @pytest.mark.asyncio
@@ -149,7 +177,7 @@ async def test_separate_clients_have_separate_budgets(limited, monkeypatch):
     for _ in range(3):
         await rate_limit.check_rate_limit(limited)
 
-    other = FakeRequest(
-        headers={"x-forwarded-for": "8.8.8.8"}, app=limited.app
-    )
+    # Reached through the same trusted proxy, but a different real client.
+    other = FakeRequest(headers={"x-forwarded-for": "8.8.8.8"}, app=limited.app)
+    other.client = FakeClient(host="10.0.0.1")
     await rate_limit.check_rate_limit(other)  # its own budget, must not raise
