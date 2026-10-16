@@ -18,79 +18,79 @@ per-platform, because only YouTube serves video and audio as separate streams.
 
 ## 🎨 FRONTEND — MUST HAVE
 
-| # | Item | Kaam | Scope |
+| # | Item | What it does | Scope |
 |---|------|------|-------|
-| 1 | URL Input Box | Link paste karne ke liye (6 platforms) | ✅ |
-| 2 | Paste Button | Clipboard se direct paste | ✅ |
-| 3 | Video/Audio Toggle | MP4 ya MP3 choose karne ke liye | ✅ |
+| 1 | URL Input Box | Paste a link (6 platforms) | ✅ |
+| 2 | Paste Button | Paste straight from the clipboard | ✅ |
+| 3 | Video/Audio Toggle | Choose MP4 or MP3 | ✅ |
 | 4 | Video Quality Selector | 360p/480p/720p/1080p/1440p(2K)/2160p(4K)/4320p(8K)/Best | ✅ |
 | 5 | Video Format Dropdown | MP4 / MKV / WebM | 🟡 |
 | 6 | Audio Quality Selector | 128 / 192 / 256 / 320 kbps / best | ✅ |
 | 7 | Audio Format Dropdown | MP3/M4A/WAV/FLAC/OPUS/AAC/OGG | ✅ |
-| 8 | Download Button | Submit karne ke liye | ✅ |
-| 9 | Loading Spinner | "Fetching..." dikhane ke liye | ✅ |
+| 8 | Download Button | Submit the job | ✅ |
+| 9 | Loading Spinner | Show "Fetching..." | ✅ |
 | 10 | Progress Bar | Real-time % from backend | ✅ |
 | 11 | Status Text | Queued/Downloading/Merging/Done | ✅ |
-| 12 | Success Message | "File ready hai" + Save button | ✅ |
+| 12 | Success Message | "File ready" + Save button | ✅ |
 | 13 | Error Message | Invalid URL / failed download | ✅ |
-| 14 | Thumbnail Preview | URL paste karte hi video image | ✅ |
-| 15 | Video Title + Duration | Confirm karne ke liye | ✅ |
+| 14 | Thumbnail Preview | Thumbnail appears as soon as a URL is pasted | ✅ |
+| 15 | Video Title + Duration | Confirm the media before downloading | ✅ |
 | 16 | Responsive Design | Mobile + tablet + desktop | ✅ |
 | 17 | Basic Styling | Readable fonts, proper spacing | ✅ |
-| 18 | Enter Key Support | URL daal ke Enter dabao | ✅ |
+| 18 | Enter Key Support | Paste a URL and press Enter | ✅ |
 
 ## 🎁 FRONTEND — OPTIONAL
 
-| # | Item | Fayda | Scope |
+| # | Item | Benefit | Scope |
 |---|------|-------|-------|
-| 1 | Download Speed Indicator | Kitne MB/s chal raha hai | ✅ |
-| 2 | ETA (Time Remaining) | Kitna time lagega | ✅ |
-| 3 | Download History | Pehle ke downloads ki list | 🟡 |
+| 1 | Download Speed Indicator | Live transfer rate in MB/s | ✅ |
+| 2 | ETA (Time Remaining) | Estimated time remaining | ✅ |
+| 3 | Download History | List of past downloads | 🟡 |
 | 4 | Dark/Light Mode Toggle | User preference | 🟡 |
-| 5 | Clear/Cancel Button | Download rokne ke liye | 🟡 |
-| 6 | Multiple URLs | Ek saath kai videos queue | 🟡 |
-| 7 | Drag & Drop | URL drag karke drop | 🟡 |
+| 5 | Clear/Cancel Button | Cancel a running download | 🟡 |
+| 6 | Multiple URLs | Queue several videos at once | 🟡 |
+| 7 | Drag & Drop | Drop a URL onto the page | 🟡 |
 | 8 | Keyboard Shortcuts | Enter/Esc shortcuts | 🟡 |
 | 9 | Toast Notifications | Corner popup messages | 🟡 |
-| 10 | Skeleton Loading | Content load hone tak placeholder | 🟡 |
-| 11 | PWA Support | Mobile pe app jaisa install | 🟡 |
-| 12 | Copy Link Button | Download link copy karne ke liye | 🟡 |
-| 13 | Share Button | Social media pe share | 🟡 |
-| 14 | QR Code | Mobile pe scan karke download | 🟡 |
+| 10 | Skeleton Loading | Placeholder while content loads | 🟡 |
+| 11 | PWA Support | Install on mobile like an app | 🟡 |
+| 12 | Copy Link Button | Copy the download link | 🟡 |
+| 13 | Share Button | Share to social media | 🟡 |
+| 14 | QR Code | Scan on mobile to download | 🟡 |
 
 ---
 
 ## ⚙️ BACKEND — MUST HAVE
 
-| # | Item | Kaam | Scope |
+| # | Item | What it does | Scope |
 |---|------|------|-------|
-| 1 | POST /api/download | Download start karne ke liye | ✅ |
-| 2 | GET /api/status/{task_id} | Progress check karne ke liye | ✅ |
-| 3 | GET /api/file/{task_id} | File serve karne ke liye | ✅ |
-| 4 | URL Validator | Sirf 6 supported platforms ke hosts accept kare | ✅ |
+| 1 | POST /api/download | Start a download | ✅ |
+| 2 | GET /api/status/{task_id} | Check progress | ✅ |
+| 3 | GET /api/file/{task_id} | Serve the finished file | ✅ |
+| 4 | URL Validator | Accept hosts for the 6 supported platforms only | ✅ |
 | 5 | yt-dlp Integration | Actual download engine | ✅ |
 | 6 | aria2c Integration | 16 parallel connections | ✅ |
 | 7 | FFmpeg Setup | Video + audio merge | ✅ |
 | 8 | ARQ + Redis | Background task queue | ✅ |
-| 9 | File Storage Folder | Downloaded files save | ✅ |
-| 10 | Task ID Generator | Har download ka unique ID | ✅ |
-| 11 | Error Handling | Failed downloads gracefully | ✅ |
-| 12 | CORS Setup | Frontend se request allow | ✅ |
+| 9 | File Storage Folder | Store downloaded files | ✅ |
+| 10 | Task ID Generator | A unique id per download | ✅ |
+| 11 | Error Handling | Handle failed downloads gracefully | ✅ |
+| 12 | CORS Setup | Allow requests from the frontend | ✅ |
 | 13 | Pydantic Validation | Type-safe input check | ✅ |
-| 14 | Basic Logging | Kya hua, kab hua | ✅ |
+| 14 | Basic Logging | What happened and when | ✅ |
 | 15 | Format Selection Logic | Quality + format combination | ✅ |
-| 16 | Bot Bypass (TV client) | YouTube block se bachne ke liye | ⛔ |
+| 16 | Bot Bypass (TV client) | Work around YouTube blocks | ⛔ |
 | 17 | Gunicorn + Uvicorn | Production server | ✅ |
 | 18 | Docker Compose | One-command deployment | ✅ |
 
 ## 🎁 BACKEND — OPTIONAL
 
-| # | Item | Fayda | Scope |
+| # | Item | Benefit | Scope |
 |---|------|-------|-------|
 | 1 | Database (SQLite/Postgres) | Download history, task records | 🟡 |
-| 2 | Rate Limiting | Abuse rokne ke liye | 🟡 |
+| 2 | Rate Limiting | Block abuse | 🟡 |
 | 3 | User Authentication (JWT) | Private downloads | 🟡 |
-| 4 | File Cleanup Cron | 24hr baad auto-delete | ✅ |
+| 4 | File Cleanup Cron | Auto-delete after 24 hours | ✅ |
 | 5 | WebSocket Server | Live progress (better than polling) | 🟡 |
 | 6 | Advanced Logging | Structured logs, rotation | 🟡 |
 | 7 | Nginx Reverse Proxy | SSL, load balancing | ✅ |
@@ -98,11 +98,11 @@ per-platform, because only YouTube serves video and audio as separate streams.
 | 9 | Monitoring (Sentry) | Errors auto-track | 🟡 |
 | 10 | Metrics (Prometheus) | Performance stats | 🟡 |
 | 11 | Cookies Support | Age-restricted videos | ⛔ |
-| 12 | Proxy Rotation | IP block se bachne ke liye | ⛔ |
-| 13 | Playlist Support | Poori playlist download | 🟡 |
-| 14 | Subtitle Download | .srt files bhi mile | 🟡 |
-| 15 | Retry Logic | 3 baar try kare fail hone pe | ✅ |
-| 16 | Health Check /health | Server alive hai? | ✅ |
+| 12 | Proxy Rotation | Work around IP blocks | ⛔ |
+| 13 | Playlist Support | Download a whole playlist | 🟡 |
+| 14 | Subtitle Download | Fetch .srt files too | 🟡 |
+| 15 | Retry Logic | Retry three times on failure | ✅ |
+| 16 | Health Check /health | Report whether the server is alive | ✅ |
 | 17 | BGutil PO Token Provider | YouTube bot bypass (advanced) | ⛔ |
 | 18 | Residential Proxy | Bulletproof IP trust | ⛔ |
 
@@ -112,35 +112,35 @@ per-platform, because only YouTube serves video and audio as separate streams.
 
 | # | Page | AdSense Requirement | Scope |
 |---|------|---------------------|-------|
-| 1 | Privacy Policy | Google AdSense + Cookies mention | ✅ |
+| 1 | Privacy Policy | Mention Google AdSense and cookies | ✅ |
 | 2 | Terms & Conditions | User responsibility, liability | ✅ |
-| 3 | About Us | Who you are, what site does | ✅ |
-| 4 | Contact Us | Working email + contact form | ✅ |
+| 3 | About Us | Who you are and what the site does | ✅ |
+| 4 | Contact Us | A working email address and contact form | ✅ |
 | 5 | DMCA Policy | Copyright takedown process | ✅ |
 | 6 | Disclaimer | No affiliation with YouTube | ✅ |
 | 7 | FAQ | Common questions | ✅ |
-| 8 | Footer Links | Saare legal pages ke links | ✅ |
+| 8 | Footer Links | Links to every legal page | ✅ |
 
 ## 🎁 LEGAL PAGES — OPTIONAL
 
-| # | Page | Fayda | Scope |
+| # | Page | Benefit | Scope |
 |---|------|-------|-------|
-| 1 | Cookie Policy | Separate cookies detail | 🟡 |
-| 2 | GDPR Compliance | EU users ke liye | 🟡 |
-| 3 | Refund Policy | Agar paid plans ho | 🟡 |
-| 4 | Blog | SEO + AdSense approval | 🟡 |
-| 5 | Sitemap | Search engines ke liye | 🟡 |
+| 1 | Cookie Policy | Detailed cookie disclosure | 🟡 |
+| 2 | GDPR Compliance | For EU users | 🟡 |
+| 3 | Refund Policy | If paid plans exist | 🟡 |
+| 4 | Blog | SEO and AdSense approval | 🟡 |
+| 5 | Sitemap | For search engines | 🟡 |
 | 6 | robots.txt | Crawler instructions | 🟡 |
-| 7 | Accessibility Statement | Disabled users ke liye | 🟡 |
+| 7 | Accessibility Statement | For users with disabilities | 🟡 |
 
 ---
 
 ## 🔧 GITHUB — MUST HAVE
 
-| # | Item | Kaam | Scope |
+| # | Item | What it does | Scope |
 |---|------|------|-------|
 | 1 | README.md | Project documentation | ✅ |
-| 2 | .gitignore | Sensitive files block | ✅ |
+| 2 | .gitignore | Ignore sensitive files | ✅ |
 | 3 | LICENSE | MIT or GPL-3.0 | ✅ |
 | 4 | frontend/ folder | Static files | ✅ |
 | 5 | backend/ folder | FastAPI app | ✅ |
@@ -152,9 +152,9 @@ per-platform, because only YouTube serves video and audio as separate streams.
 
 ## 🎁 GITHUB — OPTIONAL
 
-| # | Item | Fayda | Scope |
+| # | Item | Benefit | Scope |
 |---|------|-------|-------|
-| 1 | .github/workflows/ | CI/CD auto-deploy | ✅ |
+| 1 | .github/workflows/ | CI/CD and auto-deploy | ✅ |
 | 2 | tests/ folder | Unit + integration tests | ✅ |
 | 3 | CONTRIBUTING.md | Contributor guidelines | 🟡 |
 | 4 | CODE_OF_CONDUCT.md | Community rules | 🟡 |
