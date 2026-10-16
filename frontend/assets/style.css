@@ -337,9 +337,9 @@ nav.site a:hover { color: var(--text); background: var(--surface-2); text-decora
 /* ---------- Footer accent picker ---------- */
 .mood {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  align-items: flex-start;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
   padding-bottom: var(--sp-5);
   margin-bottom: var(--sp-5);
   border-bottom: 1px solid var(--border);
@@ -351,47 +351,43 @@ nav.site a:hover { color: var(--text); background: var(--surface-2); text-decora
   letter-spacing: 0.08em;
   color: var(--muted);
 }
+/* A segmented pill holding one swatch per palette, so the colours themselves
+   are the control and no reading is required to choose one. */
 .mood-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-}
-.mood-option {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  min-height: 34px;
-  padding: 0 var(--sp-3);
+  gap: var(--sp-1);
+  padding: 3px;
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-sm);
+}
+.mood-option {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.mood-option:hover { color: var(--text); background: var(--surface-3); }
-.mood-option .mood-source {
-  font-size: var(--fs-xs);
-  opacity: 0.75;
-}
-.mood-option[aria-checked="true"] {
-  color: var(--accent-ink);
-  background: var(--accent-solid);
-  border-color: var(--accent-solid);
-  font-weight: 600;
-}
-.mood-option[aria-checked="true"] .mood-source { opacity: 0.85; }
-.mood-option[aria-checked="true"] .swatch { border-color: rgba(0, 0, 0, 0.25); }
-
-.swatch {
-  width: 14px;
-  height: 14px;
+.mood-option:hover { background: var(--surface-3); }
+.mood-option .swatch {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   flex: none;
   border: 1px solid var(--swatch-ring);
+}
+/* The chosen palette is marked with a ring rather than a tick: a tick's ink
+   would have to be chosen per palette, and the ring reads on all three. */
+.mood-option[aria-checked="true"] { border-color: var(--accent); }
+.mood-current {
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 
 /* ---------- Hero ---------- */

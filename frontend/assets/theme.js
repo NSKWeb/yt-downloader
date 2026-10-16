@@ -125,8 +125,11 @@
   }
 
   /* ---------------------------------------------------------------------
-     Footer accent picker. One radio per palette, so the group reads as a
-     single choice in a screen reader rather than three unrelated buttons.
+     Footer accent picker. One radio per palette, rendered as a bare colour
+     swatch in a segmented pill, so the three colours are visible at a glance
+     and choosing one needs no reading. The palette name is still announced
+     (aria-label) and shown beside the pill (.mood-current), because a swatch
+     alone is not perceivable by everyone.
      --------------------------------------------------------------------- */
   function buildPicker(mount) {
     var group = mount.querySelector("[data-mood-options]");
@@ -147,6 +150,8 @@
       b.dataset.key = p.key;
       b.setAttribute("role", "radio");
       b.setAttribute("aria-checked", "false");
+      /* The swatch is the visible content, so the name has to be the label. */
+      b.setAttribute("aria-label", p.name);
       b.title = p.name + " — " + p.source;
 
       var sw = document.createElement("span");
@@ -154,22 +159,18 @@
       sw.style.background = p.hex;
       sw.setAttribute("aria-hidden", "true");
 
-      var label = document.createElement("span");
-      label.textContent = p.name;
-
-      var meta = document.createElement("span");
-      meta.className = "mood-source";
-      meta.textContent = p.source;
-      meta.setAttribute("aria-hidden", "true");
-
       b.appendChild(sw);
-      b.appendChild(label);
-      b.appendChild(meta);
       b.addEventListener("click", function () {
         applyTheme(p.key, true);
       });
       group.appendChild(b);
     });
+
+    var current = document.createElement("span");
+    current.className = "mood-current";
+    current.dataset.moodCurrent = "";
+    current.setAttribute("aria-live", "polite");
+    mount.appendChild(current);
   }
 
   /* ---------------------------------------------------------------------
@@ -208,6 +209,13 @@
     mount.appendChild(b);
   }
 
+  function paletteFor(key) {
+    for (var i = 0; i < PALETTES.length; i++) {
+      if (PALETTES[i].key === key) return PALETTES[i];
+    }
+    return null;
+  }
+
   function syncControls() {
     var theme = currentTheme();
     var mode = currentMode();
@@ -216,6 +224,13 @@
     var opts = document.querySelectorAll(".mood-option");
     for (var i = 0; i < opts.length; i++) {
       opts[i].setAttribute("aria-checked", String(opts[i].dataset.key === theme));
+    }
+
+    /* The swatch pill shows colour but not which colour, so name it in text. */
+    var current = document.querySelector("[data-mood-current]");
+    if (current) {
+      var p = paletteFor(theme);
+      current.textContent = p ? p.name : "";
     }
 
     var toggle = document.querySelector("[data-mode-toggle]");

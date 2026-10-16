@@ -299,6 +299,32 @@ def test_switcher_palettes_match_the_api_catalogue():
     assert re.findall(r'"([^"]+)"', modes.group(1)) == list(MODES), "theme.js modes"
 
 
+def test_picker_is_swatch_only_and_names_the_current_palette():
+    """The control shows three colours, not three long text buttons.
+
+    A swatch alone is not perceivable by everyone, so the palette name must
+    still be announced on the button and shown in text beside the group. This
+    guards both halves, since either one alone would be a regression.
+    """
+    js = (STYLE_CSS.parents[1] / "assets" / "theme.js").read_text(encoding="utf-8")
+
+    # One button per palette, labelled for assistive tech.
+    assert "aria-label" in js and "b.setAttribute(\"aria-label\", p.name)" in js, \
+        "swatch button has no accessible name"
+    # The verbose per-button text that made the control three long pills.
+    assert "mood-source" not in js, "per-button source text is back"
+    # ...but the name is still shown, and updated on change.
+    assert "data-mood-current" in js, "no current-palette name"
+    assert 'p ? p.name : ""' in js, "current-palette name never set"
+
+    css = STYLE_CSS.read_text(encoding="utf-8")
+    assert ".mood-source" not in css, "stale .mood-source style"
+    # The chosen palette is marked by a ring, which must follow the accent.
+    m = re.search(r'\.mood-option\[aria-checked="true"\]\s*\{([^}]*)\}', css)
+    assert m, "no checked-state style for the picker"
+    assert "--accent" in m.group(1), "checked state does not follow the accent"
+
+
 def test_every_page_applies_appearance_before_first_paint():
     """Without the snippet a returning visitor sees the wrong accent or mode."""
     pages = sorted((STYLE_CSS.parents[1]).glob("*.html"))
