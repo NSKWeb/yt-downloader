@@ -1,7 +1,7 @@
 # YT Downloader
 
 [![CI](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-139%20passing-brightgreen)](backend/tests)
+[![Tests](https://img.shields.io/badge/tests-140%20passing-brightgreen)](backend/tests)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](backend/requirements.txt)
 [![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
@@ -448,7 +448,7 @@ All settings come from environment variables. See
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest -q      # 139 tests
+python -m pytest -q      # 140 tests
 ruff check app tests     # lint
 ```
 
