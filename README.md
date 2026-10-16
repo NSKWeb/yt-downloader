@@ -1,7 +1,7 @@
 # YT Downloader
 
 [![CI](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/NSKWeb/yt-downloader/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-130%20passing-brightgreen)](backend/tests)
+[![Tests](https://img.shields.io/badge/tests-139%20passing-brightgreen)](backend/tests)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](backend/requirements.txt)
 [![Licence](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
@@ -12,7 +12,7 @@ Supported platforms: **YouTube, Instagram, Facebook, Twitter/X, Pinterest, TikTo
 
 ![The downloader interface, ready for a URL](docs/img/screenshot-home.png)
 
-*The home page. The mode toggle (Video / Audio / Image) is rendered from the
+*The home page. The Video / Audio / Image tabs are rendered from the
 platform registry, so a platform that publishes no separate audio stream never
 shows an Audio tab it cannot honour.*
 
@@ -370,7 +370,7 @@ curl -X POST http://localhost:12000/api/download \
 |--------|------|---------|
 | GET | `/api/health` | Liveness check |
 | GET | `/api/platforms` | Supported platforms and their options |
-| GET | `/api/themes` | Selectable accent palettes and their contrast ratios |
+| GET | `/api/themes` | Selectable accent palettes, modes, and their contrast ratios |
 | POST | `/api/download` | Queue a download |
 | GET | `/api/status/{task_id}` | Progress, speed, ETA, status |
 | GET | `/api/file/{task_id}` | Download the finished file |
@@ -448,14 +448,15 @@ All settings come from environment variables. See
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest -q      # 130 tests
+python -m pytest -q      # 139 tests
 ruff check app tests     # lint
 ```
 
 Tests cover URL validation, platform detection, per-platform format-selection
 logic, audio bitrate mapping, progress parsing, job lifecycle, rate limiting,
-history recording, path-traversal rejection, metadata coercion, and the absence
-of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
+history recording, path-traversal rejection, metadata coercion, accent and mode
+catalogue consistency (including the contrast ratios in both modes), and the
+absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
 
 ## Deployment notes
 
