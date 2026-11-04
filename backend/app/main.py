@@ -79,7 +79,10 @@ def _redis(request: Request):
 
 
 @app.get("/api/health")
+@app.get("/health")
 async def health() -> dict:
+    # "/health" is an alias for hosts whose liveness probe cannot be pointed at
+    # a path with a prefix (the compose nginx config probes /health directly).
     return {"status": "ok", "version": app.version}
 
 
