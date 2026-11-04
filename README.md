@@ -543,6 +543,37 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
   `/api/info` probes, and are sent only when set. A logged-in session is
   treated like an ordinary client, so it clears the bot check without spoofing.
   Sessions expire, so re-export when downloads start failing again.
+
+  Check the file before setting it. A jar that is malformed, exported while
+  signed out, or expired is accepted by the downloader and then fails every
+  download with the same 403 it was meant to clear, which points at the wrong
+  cause:
+
+  ```bash
+  python3 tools/check_cookies.py ~/Downloads/cookies.txt
+  ```
+
+  It prints the cookie counts, whether any carry a session, and a verdict, and
+  exits non-zero when the file will not work. Use it before pasting the contents
+  into a host's environment settings, where a bad paste is otherwise only
+  visible as a failed download.
+
+  On a single-service host, paste the file's contents as the value. Keep it
+  out of the repository: a session cookie is a credential for the account it
+  was exported from. Mark it secret in the host's UI so it is not shown back.
+
+  Confirm it took effect with `curl -s <host>/api/health` — `"cookies": true`
+  means the value was read. Startup logs also name the loaded path, or say the
+  value was set but unusable.
+- **403 after the metadata step succeeds.** This is the datacenter block, not a
+  code failure, and it is worth ruling out before changing anything else: run
+  `python3 -m yt_dlp -f 18 -o /tmp/t.%(ext)s <url>` against the same URL on the
+  host. If that also returns `HTTP Error 403: Forbidden`, no code change will
+  help and `YTDLP_COOKIES` is the fix. Changing `--extractor-args
+  youtube:player_client=...` does not clear it: `tv`, `web_safari`, `ios`,
+  `mweb` and `web_embedded` were all tried against a blocked host and all were
+  refused, while metadata (`--skip-download`) kept succeeding on the same IP.
+  That split — metadata fine, transfer refused — is the signature of the block.
 - **aria2c can abort where yt-dlp would have finished.** Google's video hosts
   occasionally reset a connection mid-transfer, and aria2c gives up on it. A
   failed job is retried once without the external downloader, so this no longer

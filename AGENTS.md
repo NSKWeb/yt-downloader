@@ -56,6 +56,10 @@ docker compose config --quiet   # validate before pushing
   Tests are `tools/test_screenshot_server.py`, run from `tools/`; CI does not
   cover them. On ZopCloud the mount is the deployment path: one service, one
   port, no second container.
+- `tools/check_cookies.py` — validates a `cookies.txt` before it is set as
+  `YTDLP_COOKIES`. Standalone, no imports from `app/`, not copied into the
+  image: it runs on the operator's machine. Tests are
+  `tools/test_check_cookies.py`.
 
 ## Conventions and gotchas
 

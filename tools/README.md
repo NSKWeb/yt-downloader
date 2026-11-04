@@ -67,3 +67,19 @@ python -m pytest test_screenshot_server.py -q
 The tests cover the accepted types, empty and oversized rejection, the token
 gate, and reading an upload back through `/feed` and `/shots/{id}/text`. OCR
 accuracy itself is not asserted, because it depends on the tesseract build.
+
+## Checking cookies before a deployment
+
+`check_cookies.py` validates a `cookies.txt` before it is set as `YTDLP_COOKIES`
+on the downloader. A file that is malformed, exported while signed out, or
+expired is accepted silently and then fails every download with the same 403 it
+was meant to clear.
+
+```bash
+python3 check_cookies.py ~/Downloads/cookies.txt
+cat cookies.txt | python3 check_cookies.py      # reads stdin with no argument
+```
+
+It prints the cookie counts, whether any carry a session, and a verdict, and
+exits non-zero when the file will not work. Export the file from a browser
+signed in to youtube.com, with the "Get cookies.txt LOCALLY" extension.
