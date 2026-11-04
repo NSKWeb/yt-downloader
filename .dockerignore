@@ -1,0 +1,32 @@
+# Keep the root build context (used by the root Dockerfile on single-service
+# hosts) small. docker-compose.yml builds from backend/ and uses
+# backend/.dockerignore instead, so this file does not affect it.
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.db-wal
+*.db-shm
+frontend/
+nginx/
+docs/
+backend/tests/
+backend/pytest.ini
+backend/redis-server
+docker-compose.yml
+README.md
+AGENTS.md
+PLAN.md
+LICENSE
+.github/
