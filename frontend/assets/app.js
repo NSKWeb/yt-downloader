@@ -30,6 +30,15 @@
   let pollTimer = null;
   let activeTask = null;
 
+  // Metadata for the URL currently in the box, so the quality grid can offer
+  // the heights the site actually published instead of a generic ladder.
+  let currentUrl = "";
+  let info = null;
+  let infoUrl = null;
+  let infoToken = 0;
+  let infoTimer = null;
+  let infoLoadingUrl = null;
+
   const $ = (id) => document.getElementById(id);
 
   /* Inline SVG so icons inherit currentColor and need no sprite or network. */
@@ -211,7 +220,14 @@
 
     if (mode === "video") {
       $("mode-label").textContent = "Quality";
-      const qualities = platform ? platform.video_qualities : ["best"];
+      const qualities = availableQualities();
+      const loading = infoLoadingUrl === currentUrl;
+
+      if (loading && !qualities.length) {
+        grid.appendChild(el("p", { class: "hint" }, "Checking available qualities…"));
+        return;
+      }
+
       qualities.forEach((q) => {
         const b = el("button", { type: "button" }, qualityLabel(q));
         b.className = q === quality ? "active" : "";
@@ -221,6 +237,12 @@
         });
         grid.appendChild(b);
       });
+
+      // Only say so when the site really published nothing above 360p; a
+      // pending probe is already explained by the loading hint.
+      if (!loading && info && info.formats_available.length && !qualities.length) {
+        grid.appendChild(el("p", { class: "hint" }, "This video has no downloadable quality above 360p."));
+      }
       return;
     }
 
@@ -500,9 +522,96 @@
 
   /* ---------- boot ---------- */
 
+  /* ---------- available qualities ---------- */
+
+  function qualityRank(q) {
+    return q === "best" ? Infinity : parseInt(q, 10);
+  }
+
+  /* The heights this video actually offers, as quality keys.
+
+     Falls back to the platform's full ladder until a probe answers, so the grid
+     is never empty while the metadata request is in flight. */
+  function availableQualities() {
+    const ladder = platform ? platform.video_qualities.slice() : ["best"];
+    // Guard on the URL: a reply for a previous link must not shape this grid.
+    if (!info || infoUrl !== currentUrl) return ladder;
+    if (!info.formats_available || !info.formats_available.length) return ladder;
+
+    const seen = [];
+    info.formats_available.forEach((label) => {
+      const height = parseInt(label, 10);
+      if (isNaN(height)) return;
+      // A 1080p video also carries 360p, 480p and 720p tracks; offer each rung
+      // the site can actually serve rather than only the top one.
+      ladder.forEach((q) => {
+        if (q === "best") return;
+        const limit = parseInt(q, 10);
+        if (!isNaN(limit) && limit <= height && seen.indexOf(q) === -1) seen.push(q);
+      });
+    });
+
+    seen.sort((a, b) => qualityRank(a) - qualityRank(b));
+    if (seen.length) seen.push("best");
+    return seen;
+  }
+
+  /* ---------- metadata probe ---------- */
+
+  /* Debounced so typing a URL does not fire a request per keystroke, and
+     token-guarded so a slow reply for an older URL cannot overwrite a newer one. */
+  function scheduleInfo() {
+    if (infoTimer) clearTimeout(infoTimer);
+    if (!platform || !currentUrl) {
+      info = null;
+      infoUrl = null;
+      infoLoadingUrl = null;
+      renderOptions();
+      return;
+    }
+    if (infoUrl === currentUrl) return;
+    infoLoadingUrl = currentUrl;
+    renderOptions();
+    infoTimer = setTimeout(fetchInfo, 500);
+  }
+
+  async function fetchInfo() {
+    const url = currentUrl;
+    if (!url || !platform) return;
+    const token = ++infoToken;
+    try {
+      const res = await fetch(API + "/info?url=" + encodeURIComponent(url));
+      if (token !== infoToken) return; // a newer probe superseded this one
+      const data = res.ok ? await res.json() : null;
+      // A reply that lost the race is dropped, so an outdated link cannot
+      // leave its formats behind for the next URL to inherit.
+      if (currentUrl !== url) return;
+      info = data;
+      infoUrl = url;
+      if (data && data.formats_available.length) {
+        const list = availableQualities();
+        if (list.indexOf(quality) === -1) quality = list[list.length - 1];
+      }
+    } catch (_) {
+      if (token === infoToken) {
+        info = null;
+        infoUrl = url;
+      }
+    } finally {
+      // Leave the loading flag alone when the box already points elsewhere:
+      // scheduleInfo owns it for the new URL.
+      if (token === infoToken && currentUrl === url) {
+        infoLoadingUrl = null;
+        renderOptions();
+      }
+    }
+  }
+
   function syncFromInput() {
-    const url = $("url").value;
-    setPlatform(url.trim() ? detectPlatform(url) : null);
+    const url = $("url").value.trim();
+    currentUrl = url;
+    setPlatform(url ? detectPlatform(url) : null);
+    scheduleInfo();
   }
 
   function renderPlatformStrip() {

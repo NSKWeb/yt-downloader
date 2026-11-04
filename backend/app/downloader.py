@@ -145,6 +145,27 @@ def audio_quality_arg(audio_quality: str) -> str:
     return f"{value}K"
 
 
+def _variant_tag(mode: str, quality: str, audio_format: str, audio_quality: str) -> str:
+    """A short suffix that makes each (mode, quality) pair a distinct filename.
+
+    yt-dlp skips a download whose target file already exists, so without this a
+    second request for the same video at another quality would hand back the
+    first file instead of fetching the new one.
+
+    The result is stripped to a filename-safe alphabet: it is interpolated into
+    the output template as literal text, where a "/" would create a directory.
+    """
+    if mode == "audio":
+        bitrate = audio_quality_arg(audio_quality)
+        bitrate = "best" if bitrate == "0" else bitrate.lower()
+        raw = f"{audio_format}-{bitrate}"
+    elif mode == "image":
+        raw = "image"
+    else:
+        raw = quality
+    return re.sub(r"[^A-Za-z0-9.-]", "", raw) or "download"
+
+
 def build_command(
     url: str,
     mode: str,
@@ -162,7 +183,7 @@ def build_command(
     `use_aria2c=False` drops the external downloader, which is what the retry
     in `run_download` does when aria2c aborts a transfer yt-dlp would finish.
     """
-    outtmpl = str(output_dir / "%(title).150B [%(id)s].%(ext)s")
+    outtmpl = str(output_dir / f"%(title).150B [%(id)s] [{_variant_tag(mode, quality, audio_format, audio_quality)}].%(ext)s")
     cmd: list[str] = [
         *YTDLP,
         "--no-warnings",

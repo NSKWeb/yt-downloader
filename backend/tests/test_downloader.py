@@ -103,6 +103,29 @@ class TestCommandBuilder:
         assert "--downloader" not in cmd
         assert "aria2c" not in " ".join(cmd)
 
+    def test_quality_appears_in_output_template(self):
+        """yt-dlp skips an existing target, so quality must be in the filename."""
+        a = build_command("https://youtu.be/x", "video", "360p", "mp3", Path("/tmp"))
+        b = build_command("https://youtu.be/x", "video", "720p", "mp3", Path("/tmp"))
+        ta = a[a.index("-o") + 1]
+        tb = b[b.index("-o") + 1]
+        assert "[360p]" in ta
+        assert "[720p]" in tb
+        assert ta != tb
+
+    def test_audio_variant_in_output_template(self):
+        cmd = build_command(
+            "https://youtu.be/x", "audio", "best", "m4a", Path("/tmp"),
+            audio_quality="320",
+        )
+        tpl = cmd[cmd.index("-o") + 1]
+        assert "[m4a-320k]" in tpl
+
+    def test_variant_tag_cannot_escape_the_directory(self):
+        from app.downloader import _variant_tag
+
+        assert "/" not in _variant_tag("video", "../../etc", "mp3", "192")
+
     def test_duration_cap_is_enforced(self):
         """MAX_DURATION_SECONDS was a dead setting; the command must carry it."""
         from app.downloader import duration_filter

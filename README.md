@@ -66,10 +66,12 @@ palette.
 |---|---|
 | ![A Facebook URL detected, showing the platform badge](docs/img/screenshot-platform-detected.png) | ![Audio mode showing format and bitrate selectors](docs/img/screenshot-audio.png) |
 
-*Left: pasting a link resolves the host against the allowlist and swaps the
-quality grid for that platform's own ladder — a short-form platform offers up to
-1080p, YouTube up to 4320p. Right: audio mode replaces the quality grid with a
-format selector and a bitrate selector (128–320 kbps, or best available).*
+*Left: pasting a link resolves the host against the allowlist, and the quality
+grid is then narrowed to the heights that video actually publishes — a 1080p
+upload offers up to 1080p, a 4K upload up to 2160p — with the platform's full
+ladder shown until the metadata probe answers. Right: audio mode replaces the
+quality grid with a format selector and a bitrate selector (128–320 kbps, or
+best available).*
 
 | Accent palettes | A finished job |
 |---|---|
@@ -287,6 +289,17 @@ A second `--print` template emits a `before_dl` line carrying the title and size
 estimate, so the UI can show a real filename and a size before the first byte
 lands. It uses the ASCII unit separator (`\x1f`) as the field delimiter, because
 video titles routinely contain spaces and tabs.
+
+**The output template carries the quality.** yt-dlp skips a download when its
+target file already exists, and the target is derived from the title and ID
+alone. Asking for the same video at a second quality would therefore return the
+first file. The template appends the mode and quality (`[720p]`,
+`[m4a-320k]`) so each variant lands on its own path.
+
+**The quality grid reflects the video, not the platform.** `/api/info` already
+reported the published heights, but nothing consumed them. The frontend now
+probes that endpoint, debounced, and keeps only the rungs of the platform ladder
+that are at or below the video's tallest stream.
 
 ## Platform support matrix
 
