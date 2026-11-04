@@ -155,8 +155,13 @@ def build_command(
     playlist: bool = False,
     subtitles: bool = False,
     audio_quality: str = "192",
+    use_aria2c: bool = True,
 ) -> list[str]:
-    """Assemble the yt-dlp argv for one job."""
+    """Assemble the yt-dlp argv for one job.
+
+    `use_aria2c=False` drops the external downloader, which is what the retry
+    in `run_download` does when aria2c aborts a transfer yt-dlp would finish.
+    """
     outtmpl = str(output_dir / "%(title).150B [%(id)s].%(ext)s")
     cmd: list[str] = [
         *YTDLP,
@@ -221,7 +226,7 @@ def build_command(
     # forgiving than yt-dlp's, and a host that is slow to start a TLS handshake
     # makes it abort a transfer that yt-dlp would have completed. Console
     # output is quieted because its progress bar drowns out real errors.
-    if shutil.which("aria2c"):
+    if use_aria2c and shutil.which("aria2c"):
         aria2_args = (
             f"aria2c:-x {settings.aria2c_connections} "
             f"-s {settings.aria2c_split} "
@@ -276,75 +281,88 @@ async def run_download(
     Raises RuntimeError with yt-dlp's own message on failure.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    cmd = build_command(
-        url,
-        mode,
-        quality,
-        audio_format,
-        output_dir,
-        platform_key,
-        playlist=playlist,
-        subtitles=subtitles,
-        audio_quality=audio_quality,
-    )
-    logger.info("starting download: %s", " ".join(cmd[:-1]) + " <url>")
-
-    # Files written before this point belong to earlier jobs, so the fallback
-    # below can tell a fresh artefact from a stale one.
     started = time.time()
 
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-    )
+    async def _execute(cmd: list[str]) -> tuple[int, str | None, list[str]]:
+        """Run one yt-dlp process, returning (returncode, file, error tail)."""
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        final: str | None = None
+        tail: list[str] = []
 
-    final_path: str | None = None
-    tail: list[str] = []
+        assert proc.stdout is not None
+        async for raw in proc.stdout:
+            line = raw.decode("utf-8", errors="replace").rstrip()
+            if not line:
+                continue
+            tail.append(line)
+            if len(tail) > 40:
+                tail.pop(0)
 
-    assert proc.stdout is not None
-    async for raw in proc.stdout:
-        line = raw.decode("utf-8", errors="replace").rstrip()
-        if not line:
-            continue
-        tail.append(line)
-        if len(tail) > 40:
-            tail.pop(0)
-
-        progress = _parse_progress_line(line)
-        if progress and on_progress:
-            result = on_progress(progress)
-            if asyncio.iscoroutine(result):
-                await result
-            continue
-
-        # Metadata line, emitted once before the transfer begins.
-        if line.startswith("__META__") and on_meta:
-            payload = line[len("__META__"):]
-            title, _, raw_size = payload.partition("\x1f")
-            size: int | None = None
-            if raw_size.strip().isdigit():
-                size = int(raw_size.strip())
-            result = on_meta({"title": title or None, "filesize": size})
-            if asyncio.iscoroutine(result):
-                await result
-            continue
-
-        # yt-dlp emits metadata JSON when --print is combined with a template
-        # that returns a dict; we use the simpler filepath print instead, and
-        # capture any absolute path line as the finished artefact.
-        if line.startswith("/") and Path(line).suffix:
-            final_path = line
-
-        if on_meta and line.startswith("{"):
-            try:
-                result = on_meta(json.loads(line))
+            progress = _parse_progress_line(line)
+            if progress and on_progress:
+                result = on_progress(progress)
                 if asyncio.iscoroutine(result):
                     await result
-            except json.JSONDecodeError:
-                pass
+                continue
 
-    returncode = await proc.wait()
+            # Metadata line, emitted once before the transfer begins.
+            if line.startswith("__META__") and on_meta:
+                payload = line[len("__META__"):]
+                title, _, raw_size = payload.partition("\x1f")
+                size: int | None = None
+                if raw_size.strip().isdigit():
+                    size = int(raw_size.strip())
+                result = on_meta({"title": title or None, "filesize": size})
+                if asyncio.iscoroutine(result):
+                    await result
+                continue
+
+            # yt-dlp emits metadata JSON when --print is combined with a template
+            # that returns a dict; we use the simpler filepath print instead, and
+            # capture any absolute path line as the finished artefact.
+            if line.startswith("/") and Path(line).suffix:
+                final = line
+
+            if on_meta and line.startswith("{"):
+                try:
+                    result = on_meta(json.loads(line))
+                    if asyncio.iscoroutine(result):
+                        await result
+                except json.JSONDecodeError:
+                    pass
+
+        return await proc.wait(), final, tail
+
+    def _build(use_aria2c: bool) -> list[str]:
+        return build_command(
+            url,
+            mode,
+            quality,
+            audio_format,
+            output_dir,
+            platform_key,
+            playlist=playlist,
+            subtitles=subtitles,
+            audio_quality=audio_quality,
+            use_aria2c=use_aria2c,
+        )
+
+    cmd = _build(use_aria2c=True)
+    logger.info("starting download: %s", " ".join(cmd[:-1]) + " <url>")
+    returncode, final_path, tail = await _execute(cmd)
+
+    # Google's video hosts sometimes reset a connection mid-transfer and aria2c
+    # gives up where yt-dlp's own downloader would have resumed and finished.
+    # Retry once without the external downloader before reporting failure.
+    if returncode != 0 and "--downloader" in cmd:
+        logger.warning("aria2c failed; retrying with the native downloader")
+        cmd = _build(use_aria2c=False)
+        returncode, final_path, tail = await _execute(cmd)
+
     if returncode != 0:
         raise RuntimeError("yt-dlp failed: " + _meaningful_error(tail))
 

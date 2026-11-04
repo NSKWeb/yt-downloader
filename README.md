@@ -520,9 +520,9 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
   treated like an ordinary client, so it clears the bot check without spoofing.
   Sessions expire, so re-export when downloads start failing again.
 - **aria2c can abort where yt-dlp would have finished.** Google's video hosts
-  occasionally reset a connection mid-transfer, and aria2c gives up on it. This
-  was observed on a large YouTube fetch. Lower `ARIA2C_CONNECTIONS` for those
-  hosts, or drop the aria2c downloader entirely for a retry.
+  occasionally reset a connection mid-transfer, and aria2c gives up on it. A
+  failed job is retried once without the external downloader, so this no longer
+  needs manual intervention; lower `ARIA2C_CONNECTIONS` if it happens often.
 - **Platforms break, and yt-dlp fixes them.** A Facebook video returned
   `Cannot parse data` during testing because the extractor was behind a site
   change. The fix is `pip install -U yt-dlp`, not a code change here. Pin and

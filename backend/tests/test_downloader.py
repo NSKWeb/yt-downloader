@@ -94,6 +94,15 @@ class TestCommandBuilder:
         cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
         assert "--cookies" not in cmd
 
+    def test_retry_drops_aria2c(self):
+        """The retry path must build a command without the external downloader."""
+        cmd = build_command(
+            "https://youtu.be/x", "video", "720p", "mp3", Path("/tmp"),
+            "youtube", use_aria2c=False,
+        )
+        assert "--downloader" not in cmd
+        assert "aria2c" not in " ".join(cmd)
+
     def test_duration_cap_is_enforced(self):
         """MAX_DURATION_SECONDS was a dead setting; the command must carry it."""
         from app.downloader import duration_filter
