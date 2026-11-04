@@ -37,6 +37,7 @@ of the header.*
 - [Configuration](#configuration)
 - [Tests](#tests)
 - [Deployment notes](#deployment-notes)
+- [Screenshot intake server](#screenshot-intake-server)
 - [Subdomain architecture](#subdomain-architecture)
 - [Security](#security)
 - [What this project does not do](#what-this-project-does-not-do)
@@ -555,6 +556,35 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
 - **Legal.** Downloading is lawful only for content you have the right to save.
   You are responsible for how this tool is used. See the
   [DMCA](frontend/dmca.html) and [Disclaimer](frontend/disclaimer.html) pages.
+
+## Screenshot intake server
+
+`tools/screenshot_server.py` is a small separate service for sending screenshots
+to an assistant that cannot receive images. It accepts an upload, runs OCR over
+it, and serves the extracted text at `/feed`. That text is what the assistant
+reads, so a screenshot of an error message still arrives in full.
+
+It is not part of the downloader and shares no code with it. Run it on its own:
+
+```bash
+cd tools
+pip install -r requirements.txt
+sudo apt-get install -y tesseract-ocr
+./run.sh                     # listens on 12000
+```
+
+Open `http://<host>:12000/`, choose an image, press Upload. `curl -s
+http://<host>:12000/feed` prints the newest uploads as plain text.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `12000` | Listen port |
+| `SCREENSHOT_DIR` | `/tmp/screenshot-server` | Where uploads and metadata are stored |
+| `MAX_UPLOAD_MB` | `25` | Per-file size limit |
+| `UPLOAD_TOKEN` | *(unset)* | When set, every route but `/health` requires `?t=<token>` |
+
+With no `UPLOAD_TOKEN` the service is open to anyone who can reach the port.
+Set one, or keep the port on a private network, unless that is intended.
 
 ## Subdomain architecture
 

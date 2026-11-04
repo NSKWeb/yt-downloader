@@ -51,6 +51,9 @@ docker compose config --quiet   # validate before pushing
 - `backend/app/workers/tasks.py` — ARQ worker
 - `frontend/` — static pages, `assets/style.css`, `assets/app.js`, legal pages
 - `nginx/nginx.conf` — proxy, port 12000
+- `tools/screenshot_server.py` — standalone screenshot upload + OCR service,
+  port 12000, no shared code with the downloader. Tests are its own
+  `tools/test_screenshot_server.py`, run from `tools/`; CI does not cover it.
 
 ## Conventions and gotchas
 
