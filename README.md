@@ -559,12 +559,25 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
 
 ## Screenshot intake server
 
-`tools/screenshot_server.py` is a small separate service for sending screenshots
-to an assistant that cannot receive images. It accepts an upload, runs OCR over
-it, and serves the extracted text at `/feed`. That text is what the assistant
-reads, so a screenshot of an error message still arrives in full.
+`tools/screenshot_server.py` accepts a screenshot, runs OCR over it, and serves
+the extracted text. It exists because a text-only model never receives an
+attached image: the screenshot of an error message arrives as nothing at all.
+Text always arrives.
 
-It is not part of the downloader and shares no code with it. Run it on its own:
+There are two ways to reach it.
+
+**On a single-service host (ZopCloud), it rides along on the existing port.**
+`docker/serve.py` mounts it at `/shots` when `SCREENSHOT_TOKEN` is set:
+
+```bash
+SCREENSHOT_TOKEN=pick-something-long
+```
+
+Then open `https://<your-host>/shots/?t=pick-something-long`. No second service,
+no second port. With `SCREENSHOT_TOKEN` unset the routes are not mounted at all,
+because an unguarded instance on a public host is an open drop box.
+
+**Standalone, on its own port**, when you want it separate from the downloader:
 
 ```bash
 cd tools
@@ -573,18 +586,20 @@ sudo apt-get install -y tesseract-ocr
 ./run.sh                     # listens on 12000
 ```
 
-Open `http://<host>:12000/`, choose an image, press Upload. `curl -s
-http://<host>:12000/feed` prints the newest uploads as plain text.
+Either way, `curl -s '<base>/feed?t=<token>'` prints the newest uploads as plain
+text, which is the form an agent reads them in.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PORT` | `12000` | Listen port |
-| `SCREENSHOT_DIR` | `/tmp/screenshot-server` | Where uploads and metadata are stored |
+| `SCREENSHOT_TOKEN` | *(unset)* | Mounts /shots on the main app and requires `?t=<token>`. Unset means no /shots at all |
+| `UPLOAD_TOKEN` | *(unset)* | The same token for the standalone server |
+| `SCREENSHOT_DIR` | `/var/lib/screenshots` in the image, `/tmp/screenshot-server` standalone | Where uploads and metadata are stored |
 | `MAX_UPLOAD_MB` | `25` | Per-file size limit |
-| `UPLOAD_TOKEN` | *(unset)* | When set, every route but `/health` requires `?t=<token>` |
+| `PORT` | `12000` | Standalone listen port |
 
-With no `UPLOAD_TOKEN` the service is open to anyone who can reach the port.
-Set one, or keep the port on a private network, unless that is intended.
+Uploads are stored on disk and are not deleted on a schedule. Clear
+`SCREENSHOT_DIR` when the history is no longer wanted. Its tests are
+`tools/test_screenshot_server.py`, run from `tools/`; CI does not cover them.
 
 ## Subdomain architecture
 

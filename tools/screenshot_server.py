@@ -1,20 +1,22 @@
 """Screenshot intake for conversations that cannot receive images directly.
 
-Upload a screenshot in a browser and the server stores it and runs OCR over it.
-The extracted text is what a text-only agent reads: the image bytes never reach
-the model, only the words inside them.
+Upload a screenshot and the server stores it and runs OCR over it. The extracted
+text is what a text-only agent reads: the image bytes never reach the model, only
+the words inside them.
 
-Endpoints
-    GET  /                  upload page
-    POST /upload            multipart form, field "files"; returns the OCR text
-    GET  /feed              newest uploads as plain text, for one-call reading
-    GET  /shots             newest uploads as JSON
-    GET  /shots/{id}        the stored image
-    GET  /shots/{id}/text   OCR text for one upload
-    GET  /health            liveness, OCR availability, upload count
+Two ways to run it:
 
-Set UPLOAD_TOKEN to require ?t=<token> on every route except /health. Without it
-anyone who can reach the port can upload and read.
+* Standalone, on its own port — `python screenshot_server.py` (see run.sh and
+  Dockerfile in this directory).
+* Mounted into another FastAPI app under a path prefix, with
+  `create_app(prefix="/shots")`. That is how the downloader deployment exposes
+  it, so a single-service host needs no second port.
+
+Client-side URLs are built from `location.pathname`, so the page works under any
+prefix without the template knowing what it is.
+
+Set UPLOAD_TOKEN to require `?t=<token>` on every route except /health. In the
+mounted form the token is mandatory, because the host is public.
 """
 
 from __future__ import annotations
@@ -31,10 +33,8 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
-ROOT = Path(os.environ.get("SCREENSHOT_DIR", "/tmp/screenshot-server"))
-UPLOADS = ROOT / "uploads"
 MAX_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "25")) * 1024 * 1024
-TOKEN = os.environ.get("UPLOAD_TOKEN", "").strip()
+DEFAULT_DIR = Path(os.environ.get("SCREENSHOT_DIR", "/tmp/screenshot-server"))
 
 ALLOWED = {
     "image/png": ".png",
@@ -45,18 +45,6 @@ ALLOWED = {
     "image/bmp": ".bmp",
     "image/tiff": ".tiff",
 }
-
-app = FastAPI(title="screenshot-server", version="1.0.0")
-UPLOADS.mkdir(parents=True, exist_ok=True)
-
-
-def _check(token: str | None) -> None:
-    if TOKEN and token != TOKEN:
-        raise HTTPException(status_code=401, detail="bad or missing token")
-
-
-def _new_id() -> str:
-    return f"{int(time.time())}-{secrets.token_hex(3)}"
 
 
 def _ocr(data: bytes) -> tuple[str, str | None]:
@@ -88,28 +76,6 @@ def _ocr(data: bytes) -> tuple[str, str | None]:
         return pytesseract.image_to_string(image).strip(), None
     except Exception as exc:  # pragma: no cover - OCR is best effort
         return "", f"ocr failed: {exc}"
-
-
-def _meta_path(shot_id: str) -> Path:
-    return UPLOADS / f"{shot_id}.json"
-
-
-def _load(shot_id: str) -> dict:
-    path = _meta_path(shot_id)
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="no such upload")
-    return json.loads(path.read_text())
-
-
-def _recent(limit: int) -> list[dict]:
-    metas = []
-    for path in UPLOADS.glob("*.json"):
-        try:
-            metas.append(json.loads(path.read_text()))
-        except (json.JSONDecodeError, OSError):
-            continue
-    metas.sort(key=lambda m: m["created_at"], reverse=True)
-    return metas[:limit]
 
 
 PAGE = """<!doctype html>
@@ -159,6 +125,9 @@ PAGE = """<!doctype html>
 </main>
 <script>
 const TOKEN = "__TOKEN__";
+// Derived from the page URL so the same file works at "/" standalone and at
+// "/shots/" when mounted, without the server templating a path in.
+const BASE = location.pathname.replace(/\\/?$/, "/");
 const qs = TOKEN ? "?t=" + TOKEN : "";
 const drop = document.getElementById("drop");
 const input = document.getElementById("file");
@@ -190,7 +159,7 @@ function card(shot) {
   const el = document.createElement("div");
   el.className = "card";
   const img = document.createElement("img");
-  img.src = "/shots/" + shot.id + qs;
+  img.src = BASE + shot.id + qs;
   const pre = document.createElement("pre");
   pre.textContent = shot.ocr_text || "(no text found)";
   el.append(img, pre);
@@ -204,7 +173,7 @@ go.addEventListener("click", async () => {
   const form = new FormData();
   picked.forEach(f => form.append("files", f));
   try {
-    const res = await fetch("/upload" + qs, { method: "POST", body: form });
+    const res = await fetch(BASE + "upload" + qs, { method: "POST", body: form });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     show("ok", "Uploaded " + data.uploads.length + " image(s).");
@@ -219,99 +188,149 @@ go.addEventListener("click", async () => {
 </script></body></html>"""
 
 
-@app.get("/health")
-async def health() -> dict:
-    try:
-        import pytesseract  # noqa: F401
-        from PIL import Image  # noqa: F401
+def create_app(
+    token: str | None = None,
+    upload_dir: Path | None = None,
+) -> FastAPI:
+    """Build the screenshot app.
 
-        ocr = True
-    except ImportError:
-        ocr = False
-    return {
-        "status": "ok",
-        "ocr": ocr,
-        "auth": bool(TOKEN),
-        "uploads": len(list(UPLOADS.glob("*.json"))),
-    }
+    Routes are always declared at the app's own root. Mounting this app at a
+    path prefix is what exposes it under that prefix — `app.mount("/shots",
+    create_app(...))` makes the page reachable at /shots/ and the API at
+    /shots/upload, with no second port. Declaring the prefix in the routes as
+    well would double it, because Starlette strips the mount path first.
 
+    The page builds its URLs from `location.pathname`, so it works at "/" and
+    under any mount without knowing which it is.
 
-@app.get("/", response_class=HTMLResponse)
-async def index(t: str | None = Query(default=None)) -> str:
-    _check(t)
-    page = PAGE.replace("__MAX__", str(MAX_BYTES // (1024 * 1024)))
-    return page.replace("__TOKEN__", TOKEN)
+    `token` may be None to leave the routes open, which is only appropriate on a
+    private network.
+    """
+    token = (token or "").strip() or None
+    uploads = Path(upload_dir) if upload_dir else DEFAULT_DIR / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
 
+    def guard(t: str | None) -> None:
+        if token and t != token:
+            raise HTTPException(status_code=401, detail="bad or missing token")
 
-@app.post("/upload")
-async def upload(
-    t: str | None = Query(default=None),
-    files: list[UploadFile] = File(...),
-) -> dict:
-    _check(t)
-    saved = []
-    for item in files:
-        ext = ALLOWED.get((item.content_type or "").lower())
-        if ext is None:
-            raise HTTPException(status_code=415, detail=f"unsupported type: {item.content_type}")
-        data = await item.read()
-        if not data:
-            raise HTTPException(status_code=400, detail=f"{item.filename} is empty")
-        if len(data) > MAX_BYTES:
-            raise HTTPException(status_code=413, detail=f"{item.filename} exceeds the size limit")
+    def meta_path(shot_id: str) -> Path:
+        return uploads / f"{shot_id}.json"
 
-        shot_id = _new_id()
-        (UPLOADS / f"{shot_id}{ext}").write_bytes(data)
-        text, error = _ocr(data)
-        meta = {
-            "id": shot_id,
-            "filename": item.filename,
-            "content_type": item.content_type,
-            "bytes": len(data),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "ocr_text": text,
-            "ocr_error": error,
-            "url": f"/shots/{shot_id}{ext}",
+    def load(shot_id: str) -> dict:
+        path = meta_path(shot_id)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="no such upload")
+        return json.loads(path.read_text())
+
+    def recent(limit: int) -> list[dict]:
+        metas = []
+        for path in uploads.glob("*.json"):
+            try:
+                metas.append(json.loads(path.read_text()))
+            except (json.JSONDecodeError, OSError):
+                continue
+        metas.sort(key=lambda m: m["created_at"], reverse=True)
+        return metas[:limit]
+
+    app = FastAPI(title="screenshot-server", version="1.0.0", docs_url=None, redoc_url=None)
+
+    @app.get("/health")
+    async def health() -> dict:
+        try:
+            import pytesseract  # noqa: F401
+            from PIL import Image  # noqa: F401
+
+            ocr = True
+        except ImportError:
+            ocr = False
+        return {
+            "status": "ok",
+            "ocr": ocr,
+            "auth": bool(token),
+            "uploads": len(list(uploads.glob("*.json"))),
         }
-        _meta_path(shot_id).write_text(json.dumps(meta, indent=2))
-        saved.append(meta)
-    return {"uploads": saved}
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def index(t: str | None = Query(default=None)) -> str:
+        guard(t)
+        page = PAGE.replace("__MAX__", str(MAX_BYTES // (1024 * 1024)))
+        return page.replace("__TOKEN__", token or "")
+
+    @app.post("/upload")
+    async def upload(
+        t: str | None = Query(default=None),
+        files: list[UploadFile] = File(...),
+    ) -> dict:
+        guard(t)
+        saved = []
+        for item in files:
+            ext = ALLOWED.get((item.content_type or "").lower())
+            if ext is None:
+                raise HTTPException(status_code=415, detail=f"unsupported type: {item.content_type}")
+            data = await item.read()
+            if not data:
+                raise HTTPException(status_code=400, detail=f"{item.filename} is empty")
+            if len(data) > MAX_BYTES:
+                raise HTTPException(status_code=413, detail=f"{item.filename} exceeds the size limit")
+
+            shot_id = f"{int(time.time())}-{secrets.token_hex(3)}"
+            (uploads / f"{shot_id}{ext}").write_bytes(data)
+            text, error = _ocr(data)
+            meta = {
+                "id": shot_id,
+                "filename": item.filename,
+                "content_type": item.content_type,
+                "bytes": len(data),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "ocr_text": text,
+                "ocr_error": error,
+            }
+            meta_path(shot_id).write_text(json.dumps(meta, indent=2))
+            saved.append(meta)
+        return {"uploads": saved}
+
+    @app.get("/list")
+    async def listing(
+        t: str | None = Query(default=None), limit: int = Query(default=20, le=100)
+    ) -> dict:
+        guard(t)
+        return {"shots": recent(limit)}
+
+    @app.get("/feed", response_class=PlainTextResponse)
+    async def feed(
+        t: str | None = Query(default=None), limit: int = Query(default=10, le=50)
+    ) -> str:
+        """Plain text of the newest uploads, so an agent reads it with one call."""
+        guard(t)
+        out = []
+        for meta in recent(limit):
+            out.append(
+                f"--- {meta['id']}  {meta['created_at']}  {meta['filename']} ---\n"
+                f"{meta.get('ocr_text') or '(no text found)'}\n"
+            )
+        return "\n".join(out) or "(no uploads yet)"
+
+    # Dynamic routes are declared last so the literal paths above win.
+    @app.get("/{shot_id}/text", response_class=PlainTextResponse)
+    async def shot_text(shot_id: str, t: str | None = Query(default=None)) -> str:
+        guard(t)
+        return load(shot_id).get("ocr_text", "")
+
+    @app.get("/{shot_id}")
+    async def shot(shot_id: str, t: str | None = Query(default=None)) -> FileResponse:
+        guard(t)
+        if not re.fullmatch(r"[0-9a-f-]+", shot_id):
+            raise HTTPException(status_code=400, detail="bad id")
+        matches = [m for m in uploads.glob(f"{shot_id}.*") if m.suffix != ".json"]
+        if not matches:
+            raise HTTPException(status_code=404, detail="no such upload")
+        return FileResponse(matches[0])
+
+    return app
 
 
-@app.get("/shots")
-async def shots(t: str | None = Query(default=None), limit: int = Query(default=20, le=100)) -> dict:
-    _check(t)
-    return {"shots": _recent(limit)}
-
-
-@app.get("/shots/{shot_id}")
-async def shot(shot_id: str, t: str | None = Query(default=None)) -> FileResponse:
-    _check(t)
-    if not re.fullmatch(r"[0-9a-f-]+", shot_id):
-        raise HTTPException(status_code=400, detail="bad id")
-    matches = [m for m in UPLOADS.glob(f"{shot_id}.*") if m.suffix != ".json"]
-    if not matches:
-        raise HTTPException(status_code=404, detail="no such upload")
-    return FileResponse(matches[0])
-
-
-@app.get("/shots/{shot_id}/text", response_class=PlainTextResponse)
-async def shot_text(shot_id: str, t: str | None = Query(default=None)) -> str:
-    _check(t)
-    return _load(shot_id).get("ocr_text", "")
-
-
-@app.get("/feed", response_class=PlainTextResponse)
-async def feed(t: str | None = Query(default=None), limit: int = Query(default=10, le=50)) -> str:
-    """Plain text of the newest uploads, so an agent reads it with one call."""
-    _check(t)
-    out = []
-    for meta in _recent(limit):
-        out.append(
-            f"--- {meta['id']}  {meta['created_at']}  {meta['filename']} ---\n"
-            f"{meta.get('ocr_text') or '(no text found)'}\n"
-        )
-    return "\n".join(out) or "(no uploads yet)"
+app = create_app(token=os.environ.get("UPLOAD_TOKEN"))
 
 
 if __name__ == "__main__":

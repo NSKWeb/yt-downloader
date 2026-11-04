@@ -51,9 +51,11 @@ docker compose config --quiet   # validate before pushing
 - `backend/app/workers/tasks.py` — ARQ worker
 - `frontend/` — static pages, `assets/style.css`, `assets/app.js`, legal pages
 - `nginx/nginx.conf` — proxy, port 12000
-- `tools/screenshot_server.py` — standalone screenshot upload + OCR service,
-  port 12000, no shared code with the downloader. Tests are its own
-  `tools/test_screenshot_server.py`, run from `tools/`; CI does not cover it.
+- `tools/screenshot_server.py` — screenshot upload + OCR, standalone on its own
+  port or mounted at /shots by `docker/serve.py` when `SCREENSHOT_TOKEN` is set.
+  Tests are `tools/test_screenshot_server.py`, run from `tools/`; CI does not
+  cover them. On ZopCloud the mount is the deployment path: one service, one
+  port, no second container.
 
 ## Conventions and gotchas
 
