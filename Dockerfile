@@ -10,6 +10,7 @@ RUN apt-get update \
         ffmpeg \
         aria2 \
         ca-certificates \
+        redis-server \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -37,6 +38,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8000
 
-# Runs the API and the ARQ worker in one container so a single-service host gets
-# the full stack. Point REDIS_HOST at a Redis instance the platform provides.
+# Runs the API and the ARQ worker in one container. If REDIS_HOST is not
+# reachable, a local redis-server is started so the container is self-contained.
 CMD ["/usr/local/bin/start.sh"]
