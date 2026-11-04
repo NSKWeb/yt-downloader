@@ -463,3 +463,55 @@ class TestFilteredDownloadIsAFailure:
         assert await downloader.run_download(
             "https://youtu.be/x", "video", "best", "mp3", tmp_path
         ) == out
+
+
+class TestCookiesValueCleaning:
+    """A pasted YTDLP_COOKIES value picks up artefacts that yt-dlp rejects.
+
+    Each of these produced the misleading "Cookies file must be Netscape
+    formatted, not JSON" at download time, so they are stripped before the file
+    is written.
+    """
+
+    BODY = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tv\n"
+
+    @staticmethod
+    def _resolved(value: str):
+        """Resolve a fresh value, bypassing the lru_cache keyed on the string."""
+        from app.config import _clean_cookies_value, _resolve_cookies
+
+        cleaned = _clean_cookies_value(value)
+        return _resolve_cookies.__wrapped__(cleaned)
+
+    @pytest.mark.parametrize(
+        "label,value",
+        [
+            ("plain", BODY),
+            ("crlf", BODY.replace("\n", "\r\n")),
+            ("utf8 bom", "\ufeff" + BODY),
+            ("surrounding whitespace", "   \n" + BODY + "  \n\n"),
+            ("single quotes", "'" + BODY + "'"),
+            ("double quotes", '"' + BODY + '"'),
+            ("indented rows", BODY.replace("\n.", "\n    .")),
+        ],
+    )
+    def test_artefacts_are_removed(self, label, value):
+        path = self._resolved(value)
+        assert path is not None, label
+        text = path.read_text()
+        assert text.startswith("# Netscape HTTP Cookie File"), label
+        assert "\r" not in text, label
+        assert "\ufeff" not in text, label
+        assert text.splitlines()[1].startswith(".youtube.com"), label
+
+    def test_interior_quote_is_not_stripped(self):
+        """Only the outer pair goes; a quote inside a value is data."""
+        value = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\t\"q\"\n"
+        path = self._resolved(value)
+        assert '"q"' in path.read_text()
+
+    def test_garbage_is_still_rejected(self):
+        assert self._resolved("hello world") is None
+
+    def test_empty_value_is_rejected(self):
+        assert self._resolved("   ") is None

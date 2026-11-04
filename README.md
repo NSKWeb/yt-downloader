@@ -562,6 +562,13 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
   out of the repository: a session cookie is a credential for the account it
   was exported from. Mark it secret in the host's UI so it is not shown back.
 
+  A pasted value picks up artefacts that yt-dlp rejects with "Cookies file must
+  be Netscape formatted, not JSON" — a message that names neither the file nor
+  the real problem. Wrapping quotes (`YTDLP_COOKIES='...'`), a UTF-8 BOM from
+  Notepad, CRLF endings, and per-line indentation are all stripped before the
+  jar is written, so those pastes work as intended. A value that is not a file
+  and not cookie content is still ignored, with a warning at startup.
+
   Confirm it took effect with `curl -s <host>/api/health` — `"cookies": true`
   means the value was read. Startup logs also name the loaded path, or say the
   value was set but unusable.

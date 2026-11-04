@@ -34,6 +34,10 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
     cookies: list[dict] = []
     problems: list[str] = []
     saw_header = False
+    # A file saved by Notepad, or one that went through a copy-paste, can carry
+    # a UTF-8 BOM and CRLF endings. yt-dlp rejects the BOM outright, so strip
+    # both here to match what the downloader does with a pasted value.
+    text = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
     for lineno, raw in enumerate(text.splitlines(), start=1):
         line = raw.rstrip("\n")
         if not line.strip():

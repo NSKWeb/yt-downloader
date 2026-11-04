@@ -127,7 +127,7 @@ def _resolve_cookies(value: str) -> Path | None:
     Cached because every download and probe asks for it, and the contents form
     would otherwise write a new temp file per request.
     """
-    value = value.strip()
+    value = _clean_cookies_value(value)
     if not value:
         return None
     candidate = Path(value)
@@ -145,6 +145,29 @@ def _resolve_cookies(value: str) -> Path | None:
         name = handle.name
     atexit.register(_unlink_quietly, name)
     return Path(name)
+
+
+def _clean_cookies_value(value: str) -> str:
+    """Remove the artefacts a copy-paste into an env field picks up.
+
+    A value pasted from a shell or an editor can arrive wrapped in quotes, with
+    a UTF-8 BOM in front, or indented on every line. yt-dlp rejects each of
+    those with "Cookies file must be Netscape formatted, not JSON", which names
+    neither the file nor the real problem, so the fix is to strip them here.
+    """
+    value = value.replace("\r\n", "\n").replace("\r", "\n").lstrip("\ufeff")
+    value = value.strip()
+    # A single pair of matching quotes around the whole value, from a paste
+    # like YTDLP_COOKIES='...'. Only the outer pair is removed: a quote inside
+    # a cookie value is data.
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    if "\n" not in value:
+        return value.strip()
+    # The header must start the file and every row must start a line, so drop
+    # per-line indentation and blank padding that a paste can introduce.
+    lines = [line.strip() for line in value.split("\n")]
+    return "\n".join(lines).strip()
 
 
 def _unlink_quietly(path: str) -> None:

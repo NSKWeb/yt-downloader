@@ -133,3 +133,24 @@ class TestCli:
         monkeypatch.setattr(sys, "stdin", io.StringIO(jar(row(".youtube.com", "SID"))))
         assert cc.main(["check_cookies.py"]) == 0
         assert "<stdin>" in capsys.readouterr().out
+
+
+class TestEncodingArtefacts:
+    """A file from Notepad or a copy-paste must not read as malformed.
+
+    The downloader strips these before handing the jar to yt-dlp, so a checker
+    that rejects them would disagree with the deployment it is checking for.
+    """
+
+    def test_utf8_bom_is_ignored(self):
+        ok, out = verdict("\ufeff" + jar(row(".youtube.com", "SID")))
+        assert ok
+        assert "OK" in out
+
+    def test_crlf_endings_are_accepted(self):
+        ok, _ = verdict(jar(row(".youtube.com", "SID")).replace("\n", "\r\n"))
+        assert ok
+
+    def test_lone_cr_endings_are_accepted(self):
+        ok, _ = verdict(jar(row(".youtube.com", "SID")).replace("\n", "\r"))
+        assert ok
