@@ -45,12 +45,54 @@ class TestCommandBuilder:
         assert cmd[-1] == url
 
     def test_no_bot_bypass_flags_present(self):
-        """The build must not spoof a player client or inject cookies."""
+        """The build must not spoof a player client or rotate proxies."""
         cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
         joined = " ".join(cmd)
         assert "player_client" not in joined
-        assert "--cookies" not in joined
         assert "--proxy" not in joined
+
+    def test_no_cookies_flag_without_configuration(self):
+        """Cookies are opt-in: an unconfigured build must not send any."""
+        assert settings.cookies_file is None
+        cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
+        assert "--cookies" not in cmd
+
+    def test_cookies_flag_added_when_configured(self, tmp_path, monkeypatch):
+        """A configured cookies file is passed to yt-dlp for download and probe."""
+        from app import downloader
+
+        jar = tmp_path / "cookies.txt"
+        jar.write_text("# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tx\n")
+        monkeypatch.setattr(downloader.settings, "ytdlp_cookies", str(jar))
+
+        cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
+        assert cmd[cmd.index("--cookies") + 1] == str(jar)
+
+        probe = downloader._probe_command("https://youtu.be/x")
+        assert probe[probe.index("--cookies") + 1] == str(jar)
+        assert probe[-1] == "https://youtu.be/x"
+
+    def test_cookies_contents_are_written_to_a_file(self, tmp_path, monkeypatch):
+        """Raw cookies.txt contents work too, for hosts that cannot mount a file."""
+        from app import downloader
+
+        monkeypatch.setattr(
+            downloader.settings,
+            "ytdlp_cookies",
+            "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\ty\n",
+        )
+        cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
+        path = Path(cmd[cmd.index("--cookies") + 1])
+        assert path.is_file()
+        assert "SID" in path.read_text()
+
+    def test_unusable_cookies_value_is_ignored(self, monkeypatch):
+        """A path that does not exist must not be handed to yt-dlp."""
+        from app import downloader
+
+        monkeypatch.setattr(downloader.settings, "ytdlp_cookies", "/no/such/cookies.txt")
+        cmd = build_command("https://youtu.be/x", "video", "best", "mp3", Path("/tmp"))
+        assert "--cookies" not in cmd
 
     def test_duration_cap_is_enforced(self):
         """MAX_DURATION_SECONDS was a dead setting; the command must carry it."""

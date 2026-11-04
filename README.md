@@ -469,6 +469,7 @@ All settings come from environment variables. See
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DOWNLOAD_DIR` | `/downloads` | Where finished files are written |
+| `YTDLP_COOKIES` | *(unset)* | Path to a Netscape-format `cookies.txt`, or the file's contents, for datacenter-IP hosts |
 | `FILE_TTL_SECONDS` | `3600` | How long a file is retained |
 | `REDIS_HOST` / `REDIS_PORT` | `redis` / `6379` | Queue backend |
 | `ARIA2C_CONNECTIONS` | `16` | Connections per server |
@@ -507,9 +508,17 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
 - **Datacenter IPs.** YouTube, and sometimes Twitter/X, refuse requests from
   datacenter IP ranges with a "Sign in to confirm you're not a bot" message.
   That is expected, not a bug: it is the platform declining the host, not the
-  code failing. Run this on a residential or well-reputed host, or keep the
+  code failing. The supported fix is `YTDLP_COOKIES` (see below); the
+  alternative is to run on a residential or well-reputed host, or keep the
   volume low. Instagram and Pinterest can return `403` to a datacenter IP for
   the same reason.
+- **`YTDLP_COOKIES`.** Export `cookies.txt` for the site from a logged-in
+  browser (the "Get cookies.txt LOCALLY" extension writes Netscape format), then
+  set `YTDLP_COOKIES` to its path, or paste the file's contents as the value on
+  hosts that cannot mount a file. The cookies are used for both downloads and
+  `/api/info` probes, and are sent only when set. A logged-in session is
+  treated like an ordinary client, so it clears the bot check without spoofing.
+  Sessions expire, so re-export when downloads start failing again.
 - **aria2c can abort where yt-dlp would have finished.** Google's video hosts
   occasionally reset a connection mid-transfer, and aria2c gives up on it. This
   was observed on a large YouTube fetch. Lower `ARIA2C_CONNECTIONS` for those

@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import atexit
+import logging
+import tempfile
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -19,6 +25,13 @@ class Settings(BaseSettings):
     redis_host: str = "redis"
     redis_port: int = 6379
     redis_database: int = 0
+
+    # yt-dlp authentication. YouTube, and sometimes X/Twitter, refuse requests
+    # from datacenter IP ranges unless the request carries a logged-in session.
+    # Set this to a Netscape-format cookies.txt exported from a browser, either
+    # as a path to an existing file or as the file's contents (for hosts that
+    # cannot mount a file). Empty sends no cookies, which is the default.
+    ytdlp_cookies: str = ""
 
     # yt-dlp / aria2c tuning
     aria2c_connections: int = 16
@@ -94,6 +107,51 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def cookies_file(self) -> Path | None:
+        """Path to a Netscape-format cookies file, or None to send no cookies.
+
+        `ytdlp_cookies` may be a path to an existing file, or the file's
+        contents. Contents are written to a temp file because yt-dlp only reads
+        cookies from a path; an unreadable path is ignored rather than passed
+        through, so a typo does not break every download.
+        """
+        return _resolve_cookies(self.ytdlp_cookies)
+
+
+@lru_cache(maxsize=8)
+def _resolve_cookies(value: str) -> Path | None:
+    """Turn a YTDLP_COOKIES value into a path once, then reuse it.
+
+    Cached because every download and probe asks for it, and the contents form
+    would otherwise write a new temp file per request.
+    """
+    value = value.strip()
+    if not value:
+        return None
+    candidate = Path(value)
+    if "\n" not in value and candidate.is_file():
+        return candidate
+    if "# Netscape HTTP Cookie File" not in value and "\t" not in value:
+        logger.warning("YTDLP_COOKIES is set but is not a file or cookies.txt content")
+        return None
+    if not value.endswith("\n"):
+        value += "\n"
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".txt", prefix="ytdlp-cookies-", delete=False
+    ) as handle:
+        handle.write(value)
+        name = handle.name
+    atexit.register(_unlink_quietly, name)
+    return Path(name)
+
+
+def _unlink_quietly(path: str) -> None:
+    try:
+        Path(path).unlink()
+    except OSError:
+        pass
 
 
 settings = Settings()

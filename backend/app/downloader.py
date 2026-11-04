@@ -9,7 +9,9 @@ Notes on what is intentionally absent:
     ordinary client would, so they are out of scope.
   * No proxy rotation.
 Requests are made as a normal client. If YouTube rate-limits a datacenter IP,
-that is a hosting decision, not something this module works around.
+that is a hosting decision, not something this module works around. The one
+supported way past it is `YTDLP_COOKIES`: an ordinary logged-in session, not a
+spoof.
 """
 
 from __future__ import annotations
@@ -170,6 +172,10 @@ def build_command(
         "--print", "before_dl:__META__%(title)s\x1f%(filesize,filesize_approx)s",
         "-o", outtmpl,
     ]
+
+    cookies = settings.cookies_file
+    if cookies is not None:
+        cmd += ["--cookies", str(cookies)]
 
     # --no-playlist is the safe default: a watch URL carrying a &list= parameter
     # should still fetch one video. Playlist mode opts in explicitly.
@@ -410,15 +416,26 @@ async def probe_info(url: str) -> dict:
         return await _probe_info_uncapped(url)
 
 
-async def _probe_info_uncapped(url: str) -> dict:
+def _probe_command(url: str) -> list[str]:
+    """Build the yt-dlp argv for a metadata probe."""
     cmd = [
         *YTDLP,
         "--no-playlist",
         "--no-warnings",
         "--skip-download",
         "--dump-single-json",
-        url,
     ]
+    # The same cookies the download uses: without them a bot-check would make
+    # /api/info return 422 for every URL the download itself could handle.
+    cookies = settings.cookies_file
+    if cookies is not None:
+        cmd += ["--cookies", str(cookies)]
+    cmd.append(url)
+    return cmd
+
+
+async def _probe_info_uncapped(url: str) -> dict:
+    cmd = _probe_command(url)
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
