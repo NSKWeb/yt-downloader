@@ -2,6 +2,10 @@
 # repository root and run one container. The application lives in backend/, so
 # the build context stays at the root and every COPY is prefixed with backend/.
 # docker-compose.yml keeps using backend/Dockerfile, which is unchanged.
+#
+# This container also serves the static frontend (frontend/) so the site root
+# works without the nginx that docker-compose provides. The API is served
+# through docker/serve.py, which mounts the frontend at "/".
 
 FROM python:3.12-slim
 
@@ -19,6 +23,8 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/app ./app
+COPY frontend ./frontend
+COPY docker/serve.py ./serve.py
 COPY docker/start.sh /usr/local/bin/start.sh
 
 RUN groupadd --gid 10001 app \

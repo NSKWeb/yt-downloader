@@ -18,7 +18,6 @@ env/
 *.db
 *.db-wal
 *.db-shm
-frontend/
 nginx/
 docs/
 backend/tests/

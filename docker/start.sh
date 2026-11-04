@@ -7,6 +7,9 @@
 # dies before it binds the port. If the configured REDIS_HOST does not answer,
 # start a local redis-server so the container is self-contained. Point
 # REDIS_HOST at a managed Redis instance to use that instead.
+#
+# The API is served through docker/serve.py, which mounts the static frontend at
+# "/" so the site root works without the nginx that docker-compose provides.
 set -euo pipefail
 
 : "${PORT:=8000}"
@@ -52,7 +55,8 @@ shutdown() {
 }
 trap shutdown TERM INT
 
-gunicorn app.main:app \
+gunicorn serve:app \
+    --chdir /app \
     --worker-class uvicorn.workers.UvicornWorker \
     --workers "${WEB_CONCURRENCY}" \
     --bind "0.0.0.0:${PORT}" \
