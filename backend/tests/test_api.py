@@ -100,6 +100,55 @@ class TestHealth:
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
 
+    def test_health_reports_cookies_absent(self, client):
+        """The flag is how a deploy confirms YTDLP_COOKIES took effect."""
+        assert client.get("/api/health").json()["cookies"] is False
+
+    def test_health_reports_cookies_present(self, client, tmp_path):
+        jar = tmp_path / "cookies.txt"
+        jar.write_text("# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tx\n")
+        settings.ytdlp_cookies = str(jar)
+        try:
+            assert client.get("/api/health").json()["cookies"] is True
+        finally:
+            settings.ytdlp_cookies = ""
+
+
+class TestBotCheckHint:
+    """A 403 must name the setting that clears it, not just report the status."""
+
+    @pytest.fixture(autouse=True)
+    def _no_cookies(self):
+        original = settings.ytdlp_cookies
+        settings.ytdlp_cookies = ""
+        yield
+        settings.ytdlp_cookies = original
+
+    def test_forbidden_explains_ytdlp_cookies(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["ERROR: unable to download video data: HTTP Error 403: Forbidden"])
+        assert "YTDLP_COOKIES" in msg
+
+    def test_bot_wall_explains_ytdlp_cookies(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["ERROR: Sign in to confirm you're not a bot"])
+        assert "YTDLP_COOKIES" in msg
+
+    def test_stale_cookies_says_re_export(self):
+        from app.downloader import _meaningful_error
+
+        settings.ytdlp_cookies = "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tx\n"
+        msg = _meaningful_error(["ERROR: HTTP Error 403: Forbidden"])
+        assert "expired" in msg.lower()
+
+    def test_unrelated_error_is_untouched(self):
+        from app.downloader import _meaningful_error
+
+        msg = _meaningful_error(["ERROR: [facebook] x: Unable to download webpage: HTTP Error 404"])
+        assert "YTDLP_COOKIES" not in msg
+
 
 class TestValidation:
     @pytest.mark.parametrize(

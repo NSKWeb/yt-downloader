@@ -39,6 +39,18 @@ async def lifespan(app: FastAPI):
     app.state.redis = await create_pool(settings.redis_settings)
     await init_db()
     logger.info("connected to redis at %s:%s", settings.redis_host, settings.redis_port)
+    if settings.ytdlp_cookies.strip():
+        if settings.cookies_file is None:
+            # Configured but unusable: say so now rather than letting the first
+            # download fail with a 403 that looks like a network problem.
+            logger.error(
+                "YTDLP_COOKIES is set but could not be read as a file or "
+                "cookies.txt content; downloads will run without a session"
+            )
+        else:
+            logger.info("yt-dlp cookies loaded from %s", settings.cookies_file)
+    else:
+        logger.info("YTDLP_COOKIES is not set; YouTube may refuse this IP")
     yield
     await app.state.redis.close()
 
@@ -83,7 +95,15 @@ def _redis(request: Request):
 async def health() -> dict:
     # "/health" is an alias for hosts whose liveness probe cannot be pointed at
     # a path with a prefix (the compose nginx config probes /health directly).
-    return {"status": "ok", "version": app.version}
+    #
+    # The cookies flag is here because the failure it prevents is invisible from
+    # outside: a missing or stale session shows up only as a 403 on the first
+    # download. One request answers "is it configured at all?".
+    return {
+        "status": "ok",
+        "version": app.version,
+        "cookies": settings.cookies_file is not None,
+    }
 
 
 @app.get("/api/platforms")

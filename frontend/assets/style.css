@@ -720,6 +720,9 @@ select {
 
 .alert.visible { display: flex; }
 .alert .icon { margin-top: 2px; }
+/* Download failures carry a second paragraph explaining the fix; keep the
+   break instead of collapsing the whole message onto one line. */
+.alert span { white-space: pre-line; }
 
 .alert.error {
   background: var(--alert-error-bg);

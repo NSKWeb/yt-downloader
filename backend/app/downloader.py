@@ -91,8 +91,8 @@ def duration_filter(max_seconds: int) -> str:
 def _meaningful_error(lines: list[str]) -> str:
     """Pick the lines that explain a failure, ignoring transfer chatter."""
     cleaned = []
-    for raw in lines:
-        line = _ANSI_RE.sub("", raw).strip()
+    for line in lines:
+        line = _ANSI_RE.sub("", line).strip()
         if not line or _ARIA2_PROGRESS_RE.search(line):
             continue
         cleaned.append(line)
@@ -101,7 +101,41 @@ def _meaningful_error(lines: list[str]) -> str:
     # Prefer lines that look like the cause; otherwise keep the last few.
     errors = [ln for ln in cleaned if "ERROR" in ln or "error" in ln]
     chosen = errors[:3] if errors else cleaned[-8:]
-    return "\n".join(chosen)[:600]
+    message = "\n".join(chosen)[:600]
+
+    hint = _bot_check_hint(message)
+    if hint:
+        message = f"{message}\n\n{hint}"
+    return message
+
+
+def _bot_check_hint(message: str) -> str:
+    """Explain a YouTube bot check in terms of the setting that clears it.
+
+    The raw `HTTP Error 403: Forbidden` says nothing about what to do, and the
+    cause — a datacenter IP with no logged-in session — is not something the
+    user can infer from it.
+    """
+    lowered = message.lower()
+    looks_like_bot_check = (
+        "sign in to confirm" in lowered
+        or "not a bot" in lowered
+        or ("403" in lowered and "forbidden" in lowered)
+    )
+    if not looks_like_bot_check:
+        return ""
+    if settings.cookies_file is None:
+        return (
+            "YouTube is refusing this server's IP address and wants a logged-in "
+            "session. Export a cookies.txt from a browser signed in to YouTube "
+            "and set it as YTDLP_COOKIES (the file's contents work too), then "
+            "restart the service."
+        )
+    return (
+        "YouTube refused the stored session. The cookies have likely expired or "
+        "were exported from a browser that is no longer signed in; export a "
+        "fresh cookies.txt and update YTDLP_COOKIES."
+    )
 
 
 def build_format_selector(mode: str, quality: str, platform_key: str = "youtube") -> str:

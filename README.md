@@ -506,7 +506,7 @@ All settings come from environment variables. See
 ```bash
 cd backend
 pip install -r requirements.txt
-python -m pytest -q      # 193 tests
+python -m pytest -q      # 226 tests
 ruff check app tests     # lint
 ```
 
@@ -525,6 +525,16 @@ absence of bot-bypass flags. `ruff` and `pip-audit` also run in CI.
   alternative is to run on a residential or well-reputed host, or keep the
   volume low. Instagram and Pinterest can return `403` to a datacenter IP for
   the same reason.
+
+  A missing session surfaces as `HTTP Error 403: Forbidden` mid-transfer, after
+  the metadata step succeeds. Nothing in the code changes this: the failure was
+  reproduced on the pinned yt-dlp, on the latest release, with
+  `--impersonate chrome`, and across every player client, on the same IP that
+  serves the site. Only a session cookie clears it.
+
+  Two checks make the state visible without reading the logs. `/api/health`
+  carries a `cookies` flag, and startup logs either the loaded path or an error
+  when the value is set but unusable.
 - **`YTDLP_COOKIES`.** Export `cookies.txt` for the site from a logged-in
   browser (the "Get cookies.txt LOCALLY" extension writes Netscape format), then
   set `YTDLP_COOKIES` to its path, or paste the file's contents as the value on
